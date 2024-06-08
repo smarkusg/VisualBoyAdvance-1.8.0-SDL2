@@ -1,0 +1,25 @@
+From: Etienne Millon <me@emillon.org>
+Subject: Do not include C headers within a namespace
+Bug-Debian: https://bugs.debian.org/831197
+
+This breaks the build with GCC 6.
+
+diff --git a/src/expr.cpp b/src/expr.cpp
+index 25c68f6..389800d 100644
+--- a/src/expr.cpp
++++ b/src/expr.cpp
+@@ -14,12 +14,12 @@
+ 
+ #line 1 "expr.y"
+ 
+-namespace std {  
++
+ #include <stdio.h>
+ #include <memory.h>
+ #include <stdlib.h>
+ #include <string.h>
+-}
++
+ 
+ using namespace std;
+  

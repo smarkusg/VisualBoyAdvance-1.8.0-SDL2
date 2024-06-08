@@ -1,0 +1,6 @@
+debian/ChangeLog
+debian/VisualBoyAdvance.1
+po/*.gmo
+po/POTFILES
+po/stamp-po
+po/vba.pot

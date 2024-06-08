@@ -1,0 +1,17 @@
+From: Etienne Millon <etienne.millon@gmail.com>
+Subject: Don't rebuild *.po files
+
+There is already an embedded vba.pot copy in the po/ directory. Re-creating it
+makes the package fail to build twice in a row because the *.po files are then
+refreshed.
+--- a/po/Makefile.in.in
++++ b/po/Makefile.in.in
+@@ -125,7 +125,7 @@
+ # every "make" invocation, only create it when it is missing.
+ # Only "make $(DOMAIN).pot-update" or "make dist" will force an update.
+ $(srcdir)/$(DOMAIN).pot:
+-	$(MAKE) $(DOMAIN).pot-update
++	cp -a $(srcdir)/$(DOMAIN)-$(VERSION).pot $@
+ 
+ # This target rebuilds a PO file if $(DOMAIN).pot has changed.
+ # Note that a PO file is not touched if it doesn't need to be changed.

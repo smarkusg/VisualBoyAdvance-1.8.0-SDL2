@@ -1,0 +1,42 @@
+Source: visualboyadvance
+Section: otherosfs
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Debian Games Team <pkg-games-devel@lists.alioth.debian.org>
+Uploaders:
+ Etienne Millon <me@emillon.org>
+Build-Depends:
+ debhelper (>= 11),
+ docbook-to-man,
+ help2man,
+ libpng-dev,
+ libsdl1.2-dev,
+ libx11-dev,
+ libxt-dev,
+ nasm [i386 kfreebsd-i386 hurd-i386],
+ x11proto-core-dev,
+ zlib1g-dev
+Standards-Version: 4.1.2
+Homepage: http://sourceforge.net/projects/vba
+Vcs-Git: https://anonscm.debian.org/git/pkg-games/visualboyadvance.git
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-games/visualboyadvance.git
+
+Package: visualboyadvance
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends}
+Suggests:
+ joy2key
+Description: full featured Game Boy Advance emulator
+ VisualBoyAdvance is a Game Boy Advance emulator that works with
+ many ROMs that are publically available. It features save states
+ (like those that are available in ZSNES), full screen support,
+ joystick support, the all-important 'speedup emulation' key for
+ impatient gamers, and a lot more.
+ .
+ It also contains many useful tools for Game Boy Advance developers,
+ such as powerful GDB and gprof integration.
+ .
+ This package contains a version of VisualBoyAdvance compiled with
+ the original GUI-less SDL interface.

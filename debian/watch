@@ -1,0 +1,4 @@
+# watch control file for uscan
+version=3
+opts="dversionmangle=s/\.dfsg//" \
+http://sf.net/vba/VisualBoyAdvance-src-([\d+\.]+|\d+)\.tar\.gz

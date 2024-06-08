@@ -1,0 +1,14 @@
+Author: <plugwash@p10link.net>
+Description: Make the parameter list in the typecase actually match the one in the
+variable it's assigned to.
+--- a/src/Util.cpp
++++ b/src/Util.cpp
+@@ -992,7 +992,7 @@
+ 
+ gzFile utilGzOpen(const char *file, const char *mode)
+ {
+-  utilGzWriteFunc = (int (ZEXPORT *)(void *,void * const, unsigned int))gzwrite;
++  utilGzWriteFunc = (int (ZEXPORT *)(gzFile,const voidp, unsigned int))gzwrite;
+   utilGzReadFunc = gzread;
+   utilGzCloseFunc = gzclose;
+ 

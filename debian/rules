@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+export DEB_CXXFLAGS_MAINT_APPEND = -fpermissive
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	dh_auto_configure -- --without-mmx
+
+override_dh_auto_build:
+	for i in $$(ls po/*.po | sed 's/.po//'); do \
+		msgfmt -o $$i.gmo $$i.po; \
+	done
+	dh_auto_build
+
+override_dh_install:
+	find .
+	dh_install
+
+override_dh_installman:
+	help2man src/sdl/VisualBoyAdvance \
+		-n VisualBoyAdvance -s 1 -N \
+		-o $(CURDIR)/debian/VisualBoyAdvance.1
+	sed -i -e 's/src\/sdl\///' $(CURDIR)/debian/VisualBoyAdvance.1
+	dh_installman
+
+override_dh_installchangelogs:
+	cat ChangeLog ChangeLog.1.7.1 ChangeLog.1.7 ChangeLog.1.5.1 > debian/ChangeLog
+	dh_installchangelogs

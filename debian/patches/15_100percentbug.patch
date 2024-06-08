@@ -1,0 +1,17 @@
+From: Matthew Harvey <m2harvey@uwaterloo.ca>
+Subject: Fix 100% CPU usage on SDL
+Bug-Debian: https://bugs.debian.org/740292
+Reviewed-By: Etienne Millon <me@emillon.org>
+
+diff --git a/src/gtk/window.cpp b/src/gtk/window.cpp
+index ea00154..ab6c5e3 100644
+--- a/src/gtk/window.cpp
++++ b/src/gtk/window.cpp
+@@ -1583,6 +1584,7 @@ void Window::vComputeFrameskip(int _iRate)
+         if (iDelay > 0)
+         {
+           m_uiThrottleDelay = iDelay;
++          SDL_Delay(iDelay);
+         }
+       }
+       iWantedSpeed = m_iThrottle;

@@ -1,0 +1,10 @@
+Getting the upstream source
+---------------------------
+
+The current version, 1.8.0, can be fetched from upstream CVS with the following
+commands:
+
+cvs -d:pserver:anonymous@vba.cvs.sourceforge.net:/cvsroot/vba login
+cvs -z3 -d:pserver:anonymous@vba.cvs.sourceforge.net:/cvsroot/vba co -P VisualBoyAdvance
+
+The password field can be left blank.

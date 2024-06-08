@@ -1,0 +1,12 @@
+Author: Javier Serrano Polo <jasp00@terra.es>
+Description: Fix GB ROM loading in gvba
+--- a/src/gtk/window.cpp
++++ b/src/gtk/window.cpp
+@@ -1428,6 +1428,7 @@
+     bLoaded = gbLoadRom(csFile);
+     if (bLoaded)
+     {
++      gbReset();
+       m_eCartridge = CartridgeGB;
+       m_stEmulator = GBSystem;
+     }
