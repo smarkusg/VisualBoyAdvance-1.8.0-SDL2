@@ -160,6 +160,8 @@ noinst_PROGRAMS = TestEmu
 
 VisualBoyAdvance_SOURCES = \
 	SDL.cpp			\
+	amigaos.cpp		\
+	amigaos.h		\
 	debugger.cpp		\
 	debugger.h		\
 	../2xSaI.cpp		\
@@ -337,7 +339,7 @@ am_TestEmu_OBJECTS = TestEmu.$(OBJEXT) debugger.$(OBJEXT) \
 	scanline.$(OBJEXT) simple2x.$(OBJEXT) unzip.$(OBJEXT)
 TestEmu_OBJECTS = $(am_TestEmu_OBJECTS)
 TestEmu_LDFLAGS =
-am_VisualBoyAdvance_OBJECTS = SDL.$(OBJEXT) debugger.$(OBJEXT) \
+am_VisualBoyAdvance_OBJECTS = SDL.$(OBJEXT)  amigaos.$(OBJEXT) debugger.$(OBJEXT) \
 	2xSaI.$(OBJEXT) Cheats.$(OBJEXT) EEprom.$(OBJEXT) \
 	Flash.$(OBJEXT) GBA.$(OBJEXT) Gfx.$(OBJEXT) Globals.$(OBJEXT) \
 	Mode0.$(OBJEXT) Mode1.$(OBJEXT) Mode2.$(OBJEXT) Mode3.$(OBJEXT) \
@@ -363,6 +365,7 @@ am__depfiles_maybe = depfiles
 @AMDEP_TRUE@	./$(DEPDIR)/Mode3.Po ./$(DEPDIR)/Mode4.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/Mode5.Po ./$(DEPDIR)/RTC.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/SDL.Po ./$(DEPDIR)/Sound.Po \
+@AMDEP_TRUE@	./$(DEPDIR)/amigaos.Po ./$(DEPDIR)/Sound.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/Sram.Po ./$(DEPDIR)/TestEmu.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/Text.Po ./$(DEPDIR)/Util.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/admame.Po ./$(DEPDIR)/agbprint.Po \
@@ -453,6 +456,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Mode5.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/RTC.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SDL.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/amigaos.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Sound.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Sram.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/TestEmu.Po@am__quote@

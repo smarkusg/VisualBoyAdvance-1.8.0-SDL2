@@ -4,6 +4,8 @@ noinst_PROGRAMS = TestEmu
 
 VisualBoyAdvance_SOURCES = \
 	SDL.cpp			\
+	amigaos.cpp		\
+	amigaos.h		\
 	debugger.cpp		\
 	debugger.h		\
 	../2xSaI.cpp		\

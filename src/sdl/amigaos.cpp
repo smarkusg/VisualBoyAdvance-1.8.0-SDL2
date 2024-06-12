@@ -107,22 +107,12 @@ BOOL open_lib( const char *name, int ver , const char *iname, int iver, struct L
 		}                                                                                            \
 	}
 
-void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
-{
-	struct WBStartup *WBStartup = NULL;
-	struct DiskObject *icon = NULL;
-
-	*new_argc = argc;
-	*new_argv = argv;
-
-	WBStartup = (struct WBStartup *) argv;
-	if (!WBStartup)
-	{
-		return ; // We never know !
-	}
-
 //tooltype
+void AmigOS_tooltype( WBStartup *WBStartup)
+{
       struct WBArg *WBArg=&WBStartup->sm_ArgList[0];
+      struct DiskObject *icon = NULL;
+
       BPTR oldcd;
 
       if (*WBArg->wa_Name) 
@@ -142,7 +132,22 @@ void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
 	 }
       SetCurrentDir(oldcd);
       }
-//
+
+}
+
+void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
+{
+	struct WBStartup *WBStartup = NULL;
+
+	*new_argc = argc;
+	*new_argv = argv;
+
+	WBStartup = (struct WBStartup *) argv;
+	if (!WBStartup)
+	{
+		return ; // We never know !
+	}
+
 	if ((WBStartup->sm_NumArgs > 1) && (!argc))
 	{
 		// The first arg is always the tool name (aka us)
@@ -243,6 +248,8 @@ void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
 
 		FreeAslRequest(AmigaOS_FileRequester);
 	}
+
+	AmigOS_tooltype (WBStartup);
 	return;
 	
 
