@@ -223,12 +223,8 @@ static int rewindTimer = 0;
 #define REWIND_SIZE 400000
 #define SYSMSG_BUFFER_SIZE 1024
 
-
 #ifdef __AMIGAOS4__
 #include "amigaos.h"
-//#define AMIGA_VERSION "VisualBoyAdvance 1.8.0 (7.06.2024)"
-//    static const char *__attribute__((used)) stackcookie = "$STACK: 500000";
-//    static const char *__attribute__((used)) version_tag = "$VER: " AMIGA_VERSION ;
 #endif
 
 #define _stricmp strcasecmp
@@ -2089,6 +2085,10 @@ int main(int argc, char **argv)
 
   parseDebug = true;
 
+
+
+
+
 #ifndef __AMIGAOS4__
   homeDir = getenv("HOME");
 #endif
@@ -2518,8 +2518,9 @@ int main(int argc, char **argv)
      else w_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
 
 #endif //no AMIGAOS4
-  SDL_CreateWindowAndRenderer(0, 0, w_flags, &window, &renderer);
+  SDL_CreateWindowAndRenderer(destWidth, destHeight, w_flags, &window, &renderer);
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
+  SDL_SetWindowSize(window, destWidth, destHeight); //markus niepotrzebe na razie zostawiam 
   surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
              63488, 2016
              , 31, 0);
@@ -2532,7 +2533,7 @@ int main(int argc, char **argv)
                                 destWidth, destHeight);
  
   SDL_RenderSetLogicalSize(renderer, destWidth, destHeight);
-   SDL_RenderClear(renderer);
+  SDL_RenderClear(renderer);
 
   if(window == NULL) {
 #else
@@ -2545,7 +2546,8 @@ int main(int argc, char **argv)
     SDL_Quit();
     exit(-1);
   }
-  
+
+
   systemRedShift = sdlCalculateShift(surface->format->Rmask);
   systemGreenShift = sdlCalculateShift(surface->format->Gmask);
   systemBlueShift = sdlCalculateShift(surface->format->Bmask);
