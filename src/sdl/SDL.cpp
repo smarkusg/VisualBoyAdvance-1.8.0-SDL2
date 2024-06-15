@@ -1770,6 +1770,9 @@ void sdlCheckKeys()
 
 void sdlPollEvents()
 {
+#ifdef __AMIGAOS4__
+  int flags = 0;
+#endif
   SDL_Event event;
   while(SDL_PollEvent(&event)) {
     switch(event.type) {
@@ -1799,7 +1802,19 @@ void sdlPollEvents()
 #endif
     case SDL_MOUSEMOTION:
     case SDL_MOUSEBUTTONUP:
+      if(fullscreen) {
+        SDL_ShowCursor(SDL_ENABLE);
+        mouseCounter = 120;
+      }
+      break;
     case SDL_MOUSEBUTTONDOWN:
+#ifdef __AMIGAOS4__
+      fullscreen = !fullscreen;
+      if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+         else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+
+      SDL_SetWindowFullscreen(window, flags);
+#endif
       if(fullscreen) {
         SDL_ShowCursor(SDL_ENABLE);
         mouseCounter = 120;
@@ -1865,7 +1880,6 @@ void sdlPollEvents()
       case SDLK_f:
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
-          int flags = 0;
           fullscreen = !fullscreen;
           if(fullscreen)
 #ifdef AOS_SDL2 
