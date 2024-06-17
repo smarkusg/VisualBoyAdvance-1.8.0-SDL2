@@ -1536,17 +1536,25 @@ void sdlUpdateKey(int key, bool down)
   int i;
   for(int j = 0; j < 4; j++) {
     for(i = 0 ; i < 12; i++) {
+#ifdef AOS_SDL2 
       if((joypad[j][i] & 0xf000) == 0) {
+#endif
         if(key == joypad[j][i])
           sdlButtons[j][i] = down;
+#ifdef AOS_SDL2 
       }
+#endif
     }
   }
   for(i = 0 ; i < 4; i++) {
+#ifdef AOS_SDL2 
     if((motion[i] & 0xf000) == 0) {
+#endif
       if(key == motion[i])
         sdlMotionButtons[i] = down;
+#ifdef AOS_SDL2 
     }
+#endif
   }
 }
 
@@ -1770,9 +1778,8 @@ void sdlCheckKeys()
 
 void sdlPollEvents()
 {
-#ifdef __AMIGAOS4__
   int flags = 0;
-#endif
+
   SDL_Event event;
   while(SDL_PollEvent(&event)) {
     switch(event.type) {
@@ -1809,11 +1816,12 @@ void sdlPollEvents()
       break;
     case SDL_MOUSEBUTTONDOWN:
 #ifdef __AMIGAOS4__
-      fullscreen = !fullscreen;
-      if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-         else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-
-      SDL_SetWindowFullscreen(window, flags);
+      if (event.button.clicks > 1) {
+        fullscreen = !fullscreen;
+        if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+           else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+        SDL_SetWindowFullscreen(window, flags);
+      }
 #endif
       if(fullscreen) {
         SDL_ShowCursor(SDL_ENABLE);
@@ -1837,7 +1845,11 @@ void sdlPollEvents()
                        event.jaxis.value);
       break;
     case SDL_KEYDOWN:
+#ifdef AOS_SDL2 
       sdlUpdateKey(event.key.keysym.sym, true);
+#else
+      if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, true);
+#endif
       break;
     case SDL_KEYUP:
       switch(event.key.keysym.sym) {
@@ -1985,7 +1997,11 @@ void sdlPollEvents()
       default:
         break;
       }
+#ifdef AOS_SDL2 
       sdlUpdateKey(event.key.keysym.sym, false);
+#else
+      if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, false);
+#endif
       break;
     }
   }
@@ -2534,7 +2550,6 @@ int main(int argc, char **argv)
 #endif //no AMIGAOS4
   SDL_CreateWindowAndRenderer(destWidth, destHeight, w_flags, &window, &renderer);
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
-  SDL_SetWindowSize(window, destWidth, destHeight); //markus niepotrzebe na razie zostawiam 
   surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
              63488, 2016
              , 31, 0);

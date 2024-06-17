@@ -2,6 +2,8 @@
 ** smarkusg: part of the code comes from mplayer 1.5 AOS
 ** License: GPL v2 or later
 */
+#ifdef __AMIGAOS4__
+
 #define __USE_INLINE__
 
 #include <proto/dos.h>
@@ -43,7 +45,7 @@ char* SDL_FULL = NULL; //Tooltypes
 #include <SDL2/SDL.h>
 
 static const char *__attribute__((used)) stackcookie = "$STACK: 500000";
-static const char *__attribute__((used)) version_tag = "$VER: " AMIGA_VERSION ;
+static const char *__attribute__((used)) version_tag = "$VER: " AMIGA_VERSION_SIGN ;
 
 
 
@@ -368,3 +370,4 @@ void VARARGS68K EasyRequester(CONST_STRPTR text, CONST_STRPTR button, ...)
 
 
 #undef __USE_INLINE__
+#endif //AOS4
