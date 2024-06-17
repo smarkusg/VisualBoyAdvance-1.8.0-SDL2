@@ -1487,7 +1487,7 @@ void sdlWriteBattery()
     sprintf(buffer, "%s/%s.sav", batteryDir, sdlGetFilename(filename));
   else if (homeDir)
 #ifdef __AMIGAOS4__
-    sprintf(buffer, "%s/%s/%s//%s.sav", homeDir, DOT_DIR,  DOT_RAM, sdlGetFilename(filename));
+    sprintf(buffer, "%s/%s/%s/%s.sav", homeDir, DOT_DIR,  DOT_RAM, sdlGetFilename(filename));
 #else
     sprintf(buffer, "%s/%s/%s.sav", homeDir, DOT_DIR, sdlGetFilename(filename));
 #endif
