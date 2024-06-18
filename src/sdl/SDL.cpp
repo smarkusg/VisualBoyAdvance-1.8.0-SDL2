@@ -2598,7 +2598,7 @@ int main(int argc, char **argv)
   destHeight = (sizeOption+1)*srcHeight;
 
 #ifdef AOS_SDL2
-  flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+  flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
 
  if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
        else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
@@ -2609,6 +2609,7 @@ int main(int argc, char **argv)
              , 31, 0);
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
 
   texture = SDL_CreateTexture(renderer,
                                SDL_PIXELFORMAT_RGB565,
@@ -3510,7 +3511,7 @@ void systemGbBorderOn()
   destHeight = (sizeOption+1)*srcHeight;
 
 #ifdef AOS_SDL2
-   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
 
    if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
       else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
@@ -3521,6 +3522,7 @@ void systemGbBorderOn()
              , 31, 0);
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
 
   texture = SDL_CreateTexture(renderer,
                                SDL_PIXELFORMAT_RGB565,
