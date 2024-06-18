@@ -1828,9 +1828,8 @@ void sdlPollEvents()
 #ifdef AOS_SDL2
       if (event.button.clicks > 1) {
         fullscreen = !fullscreen;
-        if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-           else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-        SDL_SetWindowFullscreen(window, flags);
+        if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+           else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
 #ifndef __AMIGAOS4__
          SDL_RenderClear(renderer);
 #endif //AOS4
@@ -1908,8 +1907,8 @@ void sdlPollEvents()
           fullscreen = !fullscreen;
           if(fullscreen)
 #ifdef AOS_SDL2 
-          if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-             else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+        if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+           else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
 
           SDL_SetWindowFullscreen(window, flags);
 #ifndef __AMIGAOS4__
@@ -2096,7 +2095,7 @@ Long options only:\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
       --no-throttle            Disable thrrotle\n\
-      --sdl2wfd              dddd\n\
+      --sdl2wfd                Enable SDL2/SDL_WINDOW_FULLSCREEN_DESKTOP\n\
       --pause-when-inactive    Pause when inactive\n\
       --rtc                    Enable RTC support\n\
       --show-speed-normal      Show emulation speed\n\
@@ -2137,7 +2136,7 @@ Long options only:\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
       --no-throttle            Disable thrrotle\n\
-      --sdl2wfd              dddd\n\
+      --sdl2wfd                Enable SDL2/SDL_WINDOW_FULLSCREEN_DESKTOP\n\
       --pause-when-inactive    Pause when inactive\n\
       --rtc                    Enable RTC support\n\
       --show-speed-normal      Show emulation speed\n\
@@ -2599,13 +2598,11 @@ int main(int argc, char **argv)
   destHeight = (sizeOption+1)*srcHeight;
 
 #ifdef AOS_SDL2
-  if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-     else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-#ifndef __AMIGAOS4__
-         SDL_RenderClear(renderer);
-#endif //AOS4
+  flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 
-  SDL_CreateWindowAndRenderer(destWidth, destHeight, flags, &window, &renderer);
+ if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
+       else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
+
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
   surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
              63488, 2016
@@ -3513,11 +3510,11 @@ void systemGbBorderOn()
   destHeight = (sizeOption+1)*srcHeight;
 
 #ifdef AOS_SDL2
-  if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-     else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 
+   if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
+      else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
 
-  SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
   surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
              63488, 2016
