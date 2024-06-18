@@ -415,7 +415,9 @@ struct option sdlOptions[] = {
   { "no-auto-frameskip", no_argument, &autoFrameSkip, 0 },
   { "no-debug", no_argument, 0, 'N' },
   { "no-ips", no_argument, &sdlAutoIPS, 0 },
+#ifndef __AMIGAOS4__
   { "no-mmx", no_argument, &disableMMX, 1 },
+#endif
   { "no-pause-when-inactive", no_argument, &pauseWhenInactive, 0 },
   { "no-rtc", no_argument, &sdlRtcEnable, 0 },
   { "no-show-speed", no_argument, &showSpeed, 0 },
@@ -2050,6 +2052,46 @@ Options:\n\
   -p, --profile=[HERTZ]        Enable profiling\n\
   -s, --frameskip=FRAMESKIP    Set frame skip (0...9)\n\
 ");
+#ifdef __AMIGAOS4__
+  printf("\
+  -t, --save-type=TYPE         Set the available save type\n\
+      --save-auto               0 - Automatic (EEPROM, SRAM, FLASH)\n\
+      --save-eeprom             1 - EEPROM\n\
+      --save-sram               2 - SRAM\n\
+      --save-flash              3 - FLASH\n\
+      --save-sensor             4 - EEPROM+Sensor\n\
+      --save-none               5 - NONE\n\
+  -v, --verbose=VERBOSE        Set verbose logging (trace.log)\n\
+                                  1 - SWI\n\
+                                  2 - Unaligned memory access\n\
+                                  4 - Illegal memory write\n\
+                                  8 - Illegal memory read\n\
+                                 16 - DMA 0\n\
+                                 32 - DMA 1\n\
+                                 64 - DMA 2\n\
+                                128 - DMA 3\n\
+                                256 - Undefined instruction\n\
+                                512 - AGBPrint messages\n\
+\n\
+Long options only:\n\
+      --agb-print              Enable AGBPrint support\n\
+      --auto-frameskip         Enable auto frameskipping\n\
+      --ifb-none               No interframe blending\n\
+      --ifb-motion-blur        Interframe motion blur\n\
+      --ifb-smart              Smart interframe blending\n\
+      --no-agb-print           Disable AGBPrint support\n\
+      --no-auto-frameskip      Disable auto frameskipping\n\
+      --no-ips                 Do not apply IPS patch\n\
+      --no-pause-when-inactive Don't pause when inactive\n\
+      --no-rtc                 Disable RTC support\n\
+      --no-show-speed          Don't show emulation speed\n\
+      --no-throttle            Disable thrrotle\n\
+      --pause-when-inactive    Pause when inactive\n\
+      --rtc                    Enable RTC support\n\
+      --show-speed-normal      Show emulation speed\n\
+      --show-speed-detailed    Show detailed speed data\n\
+");
+#else
   printf("\
   -t, --save-type=TYPE         Set the available save type\n\
       --save-auto               0 - Automatic (EEPROM, SRAM, FLASH)\n\
@@ -2089,6 +2131,8 @@ Long options only:\n\
       --show-speed-normal      Show emulation speed\n\
       --show-speed-detailed    Show detailed speed data\n\
 ");
+#endif
+
 }
 
 int main(int argc, char **argv)
