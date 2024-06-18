@@ -136,6 +136,9 @@ struct EmulatedSystem emulator = {
 };
 //markus
 int debug_fprintf = 0;//simple stupid but it works
+
+int flags = 0;
+
 #ifdef AOS_SDL2
 //new markus
 SDL_Window *window = NULL;
@@ -177,6 +180,8 @@ int cartridgeType = 3;
 int sizeOption = 0;
 int captureFormat = 0;
 
+int fullscreen_window = 0;
+
 int pauseWhenInactive = 0;
 int active = 1;
 int emulating = 0;
@@ -198,6 +203,7 @@ char* homeDir = "/PROGDIR";
 extern char* SDL_FULL; //tooltype from amigaos.cpp
 #else
 char* homeDir = NULL;
+char* SDL_FULL = NULL;
 #endif //AOS
 
 /* Directory within homedir to use for default save location. */
@@ -419,6 +425,7 @@ struct option sdlOptions[] = {
   { "no-mmx", no_argument, &disableMMX, 1 },
 #endif
   { "no-pause-when-inactive", no_argument, &pauseWhenInactive, 0 },
+  { "sdl2wfd", no_argument, &fullscreen_window, 1 },
   { "no-rtc", no_argument, &sdlRtcEnable, 0 },
   { "no-show-speed", no_argument, &showSpeed, 0 },
   { "no-throttle", no_argument, &throttle, 0 },
@@ -1280,6 +1287,8 @@ void sdlReadPreferences(FILE *f)
 #ifdef MMX
       cpu_mmx = sdlFromHex(value) ? false : true;
 #endif
+    } else if(!strcmp(key, "sdl2wfd")) {
+      fullscreen_window = sdlFromHex(value) ? false : true;
     } else if(!strcmp(key, "pauseWhenInactive")) {
       pauseWhenInactive = sdlFromHex(value) ? true : false;
     } else if(!strcmp(key, "agbPrint")) {
@@ -1780,7 +1789,6 @@ void sdlCheckKeys()
 
 void sdlPollEvents()
 {
-  int flags = 0;
 
   SDL_Event event;
   while(SDL_PollEvent(&event)) {
@@ -1817,12 +1825,15 @@ void sdlPollEvents()
       }
       break;
     case SDL_MOUSEBUTTONDOWN:
-#ifdef __AMIGAOS4__
+#ifdef AOS_SDL2
       if (event.button.clicks > 1) {
         fullscreen = !fullscreen;
         if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
            else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
         SDL_SetWindowFullscreen(window, flags);
+#ifndef __AMIGAOS4__
+         SDL_RenderClear(renderer);
+#endif //AOS4
       }
 #endif
       if(fullscreen) {
@@ -1897,15 +1908,14 @@ void sdlPollEvents()
           fullscreen = !fullscreen;
           if(fullscreen)
 #ifdef AOS_SDL2 
-//markus fixme flags don't need to be declared so many times
-#ifndef __AMIGAOS4__
-          flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-#else
           if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
              else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
 
-#endif //no AMIGAOS4
           SDL_SetWindowFullscreen(window, flags);
+#ifndef __AMIGAOS4__
+          SDL_RenderClear(renderer);
+#endif //AOS4
+
 #else
             flags |= SDL_FULLSCREEN;
           SDL_SetVideoMode(destWidth, destHeight, systemColorDepth, flags);
@@ -2086,6 +2096,7 @@ Long options only:\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
       --no-throttle            Disable thrrotle\n\
+      --sdl2wfd              dddd\n\
       --pause-when-inactive    Pause when inactive\n\
       --rtc                    Enable RTC support\n\
       --show-speed-normal      Show emulation speed\n\
@@ -2126,6 +2137,7 @@ Long options only:\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
       --no-throttle            Disable thrrotle\n\
+      --sdl2wfd              dddd\n\
       --pause-when-inactive    Pause when inactive\n\
       --rtc                    Enable RTC support\n\
       --show-speed-normal      Show emulation speed\n\
@@ -2394,6 +2406,10 @@ int main(int argc, char **argv)
   else
     flashSetSize(0x20000);
 
+//markus
+  if(fullscreen_window)
+     SDL_FULL = (char *)"TRUE";
+
   rtcEnable(sdlRtcEnable ? true : false);
   agbPrintEnable(sdlAgbPrint ? true : false);
 
@@ -2534,7 +2550,7 @@ int main(int argc, char **argv)
   if(debuggerStub) 
     remoteInit();
   
-  int flags = SDL_INIT_VIDEO|SDL_INIT_AUDIO|
+    flags = SDL_INIT_VIDEO|SDL_INIT_AUDIO|
     SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE;
 
   if(soundOffFlag)
@@ -2583,16 +2599,13 @@ int main(int argc, char **argv)
   destHeight = (sizeOption+1)*srcHeight;
 
 #ifdef AOS_SDL2
-  int w_flags;
+  if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+     else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
 #ifndef __AMIGAOS4__
-//markus fixme flags don't need to be declared so many times
-   w_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-#else
-  if (SDL_FULL) w_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-     else w_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+         SDL_RenderClear(renderer);
+#endif //AOS4
 
-#endif //no AMIGAOS4
-  SDL_CreateWindowAndRenderer(destWidth, destHeight, w_flags, &window, &renderer);
+  SDL_CreateWindowAndRenderer(destWidth, destHeight, flags, &window, &renderer);
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
   surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
              63488, 2016
@@ -3026,6 +3039,9 @@ void systemDrawScreen()
   SDL_UnlockSurface(surface);
 //markus  
 #ifdef AOS_SDL2
+#ifndef __AMIGAOS4__
+  SDL_RenderClear(renderer);
+#endif //AOS4
   SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
   SDL_RenderCopy(renderer, texture, NULL, NULL);
   SDL_RenderPresent(renderer);
@@ -3486,7 +3502,6 @@ inline void RGBtoYUV(Uint8 *rgb, int *yuv)
 
 void systemGbBorderOn()
 {
-  int w_flags;
 
   srcWidth = 256;
   srcHeight = 224;
@@ -3498,16 +3513,11 @@ void systemGbBorderOn()
   destHeight = (sizeOption+1)*srcHeight;
 
 #ifdef AOS_SDL2
-int gw_flags;
-#ifndef __AMIGAOS4__
-//markus fixme flags don't need to be declared so many times
-   gw_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-#else
-  if (SDL_FULL) gw_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-     else gw_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+  if (SDL_FULL) flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+     else flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
 
-#endif //no AMIGAOS4
-  SDL_CreateWindowAndRenderer(0, 0, gw_flags, &window, &renderer);
+
+  SDL_CreateWindowAndRenderer(0, 0, flags, &window, &renderer);
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
   surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
              63488, 2016
