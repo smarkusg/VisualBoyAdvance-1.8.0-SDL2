@@ -1912,10 +1912,12 @@ void sdlPollEvents()
            (event.key.keysym.mod & KMOD_CTRL)) {
           fullscreen = !fullscreen;
 #ifdef AOS_SDL2 
-        if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
-           else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+          if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
+             else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
 
-          SDL_SetWindowFullscreen(window, flags);
+          if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+             else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+
 #ifndef __AMIGAOS4__
           SDL_RenderClear(renderer);
 #endif //AOS4
