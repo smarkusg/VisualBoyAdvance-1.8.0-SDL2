@@ -1911,7 +1911,6 @@ void sdlPollEvents()
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
           fullscreen = !fullscreen;
-          if(fullscreen)
 #ifdef AOS_SDL2 
         if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
            else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
@@ -1922,6 +1921,7 @@ void sdlPollEvents()
 #endif //AOS4
 
 #else
+          if(fullscreen)
             flags |= SDL_FULLSCREEN;
           SDL_SetVideoMode(destWidth, destHeight, systemColorDepth, flags);
           //          if(SDL_WM_ToggleFullScreen(surface))
