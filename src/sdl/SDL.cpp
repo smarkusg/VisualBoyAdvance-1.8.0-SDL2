@@ -2617,7 +2617,8 @@ int main(int argc, char **argv)
              , 31, 0);
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
+  if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
+       else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
 
   texture = SDL_CreateTexture(renderer,
                                SDL_PIXELFORMAT_RGB565,
@@ -3530,7 +3531,8 @@ void systemGbBorderOn()
              , 31, 0);
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
+  if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
+      else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
 
   texture = SDL_CreateTexture(renderer,
                                SDL_PIXELFORMAT_RGB565,
