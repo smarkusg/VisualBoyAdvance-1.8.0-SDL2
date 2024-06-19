@@ -1,0 +1,26 @@
+diff --color -rupN old/library/libc_init_global.c new/library/libc_init_global.c
+--- old/library/libc_init_global.c	2024-06-18 12:13:57.339608570 +0200
++++ new/library/libc_init_global.c	2024-06-18 12:14:12.143977891 +0200
+@@ -376,18 +376,17 @@ reent_init(struct _clib4 *__clib4) {
+     }
+ 
+     /* Check if .unix file exists in the current dir. If the file exists enable unix path semantics */
+-
+-    __clib4->__unix_path_semantics = FALSE;
++    /* markus default enable unix path */
++    __clib4->__unix_path_semantics = TRUE;
+     struct ExamineData *exd = ExamineObjectTags(EX_StringNameInput, (CONST_STRPTR) ".unix", TAG_DONE);
+     if (exd != NULL) {
+         if (EXD_IS_FILE(exd)) {
+-            SHOWMSG("Enable unix paths");
+-            __clib4->__unix_path_semantics = TRUE;
++            SHOWMSG("Disable unix paths");
++            __clib4->__unix_path_semantics = FALSE;
+         }
+         FreeDosObject(DOS_EXAMINEDATA, exd);
+     }
+ 
+-
+     /* This table holds pointers to all signal handlers configured at a time. */
+     SHOWMSG("Set signal table to SIG_DFL");
+     for (int i = 0; i < NSIG; i++) {

@@ -1,0 +1,3 @@
+[submodule "amiga/vbagui"]
+	path = amiga/vbagui
+	url = https://github.com/javierdlr/vbagui
