@@ -24,10 +24,16 @@
 #include <sys/stat.h>
 
 #include "../AutoBuild.h"
+
+#ifdef USE_OPENGL
+# include <GL/gl.h>
+#endif
+
 //markus
 #define AOS_SDL2 //SDL2_ON
 #ifdef AOS_SDL2
 #include "SDL2/SDL.h"
+#undef USE_OPENGL //disable opengl
 #else
 #include "SDL.h"
 #endif 
@@ -281,6 +287,13 @@ int sdlMirroringEnable = 0;
 
 int sdlDefaultJoypad = 0;
 
+#ifdef USE_OPENGL
+int openGL = 0;
+int textureSize = 256;
+GLuint screenTexture = 0;
+u8 *filterPix = 0;
+#endif
+
 extern void debuggerSignal(int,int);
 
 void (*dbgMain)() = debuggerMain;
@@ -424,11 +437,19 @@ struct option sdlOptions[] = {
 #ifndef __AMIGAOS4__
   { "no-mmx", no_argument, &disableMMX, 1 },
 #endif
+#ifdef USE_OPENGL
+  { "no-opengl", no_argument, &openGL, 0 },
+#endif
   { "no-pause-when-inactive", no_argument, &pauseWhenInactive, 0 },
   { "sdl2wfd", no_argument, &fullscreen_window, 1 },
   { "no-rtc", no_argument, &sdlRtcEnable, 0 },
   { "no-show-speed", no_argument, &showSpeed, 0 },
   { "no-throttle", no_argument, &throttle, 0 },
+#ifdef USE_OPENGL
+  { "opengl", required_argument, 0, 'O' },
+  { "opengl-nearest", no_argument, &openGL, 1 },
+  { "opengl-bilinear", no_argument, &openGL, 2 },
+#endif
   { "pause-when-inactive", no_argument, &pauseWhenInactive, 1 },
   { "profile", optional_argument, 0, 'p' },
   { "rtc", no_argument, &sdlRtcEnable, 1 },
@@ -1287,6 +1308,10 @@ void sdlReadPreferences(FILE *f)
 #ifdef MMX
       cpu_mmx = sdlFromHex(value) ? false : true;
 #endif
+#ifdef USE_OPENGL
+    } else if(!strcmp(key, "openGL")) {
+      openGL = sdlFromHex(value);
+#endif
     } else if(!strcmp(key, "sdl2wfd")) {
       fullscreen_window = sdlFromHex(value) ? false : true;
     } else if(!strcmp(key, "pauseWhenInactive")) {
@@ -1536,6 +1561,50 @@ void sdlReadBattery()
     systemScreenMessage("Loaded battery");
 #endif
 }
+
+#ifdef USE_OPENGL
+void sdlOpenGLInit(int w, int h)
+{
+  float screenAspect = (float) srcWidth / srcHeight,
+        windowAspect = (float) w / h;
+
+  if(glIsTexture(screenTexture))
+    glDeleteTextures(1, &screenTexture);
+
+  glDisable(GL_CULL_FACE);
+  glEnable(GL_TEXTURE_2D);
+
+  if(windowAspect == screenAspect)
+    glViewport(0, 0, w, h);
+  else if (windowAspect < screenAspect) {
+    int height = (int)(w / screenAspect);
+    glViewport(0, (h - height) / 2, w, height);
+  } else {// if (windowAspect > screenAspect)
+    int width = (int)(h * screenAspect);
+    glViewport((w - width) / 2, 0, width, h);
+  }
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+
+  glOrtho(0.0, 1.0, 1.0, 0.0, 0.0, 1.0);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  glGenTextures(1, &screenTexture);
+  glBindTexture(GL_TEXTURE_2D, screenTexture);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
+
+  textureSize = filterFunction ? 512 : 256;
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0,
+               GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+}
+#endif
 
 #define MOD_KEYS    (KMOD_CTRL|KMOD_SHIFT|KMOD_ALT)
 #define MOD_NOCTRL  (KMOD_SHIFT|KMOD_ALT)
@@ -2038,6 +2107,16 @@ Options:\n\
   -2, --video-2x               2x\n\
   -3, --video-3x               3x\n\
   -4, --video-4x               4x\n\
+");
+#ifdef USE_OPENGL
+  printf("\
+  -O, --opengl=MODE            Set OpenGL texture filter\n\
+      --no-opengl               0 - Disable OpenGL\n\
+      --opengl-nearest          1 - No filtering\n\
+      --opengl-bilinear         2 - Bilinear filtering\n\
+");
+#endif
+  printf("\
   -F, --fullscreen             Full screen\n\
   -G, --gdb=PROTOCOL           GNU Remote Stub mode:\n\
                                 tcp      - use TCP at port 55555\n\
@@ -2071,7 +2150,6 @@ Options:\n\
   -p, --profile=[HERTZ]        Enable profiling\n\
   -s, --frameskip=FRAMESKIP    Set frame skip (0...9)\n\
 ");
-#ifdef __AMIGAOS4__
   printf("\
   -t, --save-type=TYPE         Set the available save type\n\
       --save-auto               0 - Automatic (EEPROM, SRAM, FLASH)\n\
@@ -2105,54 +2183,18 @@ Long options only:\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
       --no-throttle            Disable thrrotle\n\
-      --sdl2wfd                Enable SDL2/SDL_WINDOW_FULLSCREEN_DESKTOP\n\
-      --pause-when-inactive    Pause when inactive\n\
-      --rtc                    Enable RTC support\n\
-      --show-speed-normal      Show emulation speed\n\
-      --show-speed-detailed    Show detailed speed data\n\
 ");
-#else
+#ifdef AOS_SDL2
   printf("\
-  -t, --save-type=TYPE         Set the available save type\n\
-      --save-auto               0 - Automatic (EEPROM, SRAM, FLASH)\n\
-      --save-eeprom             1 - EEPROM\n\
-      --save-sram               2 - SRAM\n\
-      --save-flash              3 - FLASH\n\
-      --save-sensor             4 - EEPROM+Sensor\n\
-      --save-none               5 - NONE\n\
-  -v, --verbose=VERBOSE        Set verbose logging (trace.log)\n\
-                                  1 - SWI\n\
-                                  2 - Unaligned memory access\n\
-                                  4 - Illegal memory write\n\
-                                  8 - Illegal memory read\n\
-                                 16 - DMA 0\n\
-                                 32 - DMA 1\n\
-                                 64 - DMA 2\n\
-                                128 - DMA 3\n\
-                                256 - Undefined instruction\n\
-                                512 - AGBPrint messages\n\
-\n\
-Long options only:\n\
-      --agb-print              Enable AGBPrint support\n\
-      --auto-frameskip         Enable auto frameskipping\n\
-      --ifb-none               No interframe blending\n\
-      --ifb-motion-blur        Interframe motion blur\n\
-      --ifb-smart              Smart interframe blending\n\
-      --no-agb-print           Disable AGBPrint support\n\
-      --no-auto-frameskip      Disable auto frameskipping\n\
-      --no-ips                 Do not apply IPS patch\n\
-      --no-mmx                 Disable MMX support\n\
-      --no-pause-when-inactive Don't pause when inactive\n\
-      --no-rtc                 Disable RTC support\n\
-      --no-show-speed          Don't show emulation speed\n\
-      --no-throttle            Disable thrrotle\n\
       --sdl2wfd                Enable SDL2/SDL_WINDOW_FULLSCREEN_DESKTOP\n\
-      --pause-when-inactive    Pause when inactive\n\
-      --rtc                    Enable RTC support\n\
-      --show-speed-normal      Show emulation speed\n\
-      --show-speed-detailed    Show detailed speed data\n\
 ");
 #endif
+  printf("\
+      --pause-when-inactive    Pause when inactive\n\
+      --rtc                    Enable RTC support\n\
+      --show-speed-normal      Show emulation speed\n\
+      --show-speed-detailed    Show detailed speed data\n\
+");
 
 }
 
@@ -2242,7 +2284,7 @@ int main(int argc, char **argv)
 
   while((op = getopt_long(argc,
                           argv,
-                          "FNT:Y:G:D:b:c:df:hi:p::s:t:v:1234",
+                          "FNO:T:Y:G:D:b:c:df:hi:p::s:t:v:1234",
                           sdlOptions,
                           NULL)) != -1) {
     switch(op) {
@@ -2394,6 +2436,16 @@ int main(int argc, char **argv)
     case '?':
       sdlPrintUsage = 1;
       break;
+    case 'O':
+#ifdef USE_OPENGL
+      if(optarg) {
+        openGL = atoi(optarg);
+        if (openGL < 0 || openGL > 2)
+          openGL = 1;
+      } else
+        openGL = 0;
+#endif
+      break;
     }
   }
 
@@ -2431,6 +2483,9 @@ int main(int argc, char **argv)
   }
 
   if(filter) {
+#ifdef USE_OPENGL
+    if(!openGL)
+#endif
     sizeOption = 1;
   }
 
@@ -2609,6 +2664,9 @@ int main(int argc, char **argv)
 
 #ifdef AOS_SDL2
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
+#ifdef USE_OPENGL
+  flags = flags | SDL_WINDOW_OPENGL;
+#endif
 
  if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
        else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
@@ -2830,7 +2888,15 @@ int main(int argc, char **argv)
     delta = (u8*)malloc(322*242*4);
     memset(delta, 255, 322*242*4);
   }
-  
+
+#ifdef USE_OPENGL
+  if(openGL) {
+    filterPix = (u8 *)calloc(1, 4 * 4 * 256 * 240);
+
+    sdlOpenGLInit(destWidth, destHeight);
+  }
+#endif
+
   emulating = 1;
   renderedFrames = 0;
 
@@ -2900,13 +2966,20 @@ int main(int argc, char **argv)
     free(delta);
     delta = NULL;
   }
-  
+
 #ifdef AOS_SDL2
   // Close and destroy the window
   SDL_DestroyTexture(texture);
   SDL_FreeSurface(surface);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);        
+#endif
+
+#ifdef USE_OPENGL
+  if(filterPix) {
+    free(filterPix);
+    filterPix = NULL;
+  }
 #endif
 
   SDL_Quit();
@@ -2934,6 +3007,9 @@ void systemDrawScreen()
 {
   renderedFrames++;
   
+#ifdef USE_OPENGL
+  if(!openGL)
+#endif
   SDL_LockSurface(surface);
 
   if(screenMessage) {
@@ -2955,6 +3031,52 @@ void systemDrawScreen()
     else
       ifbFunction(pix+destWidth*2+4, destWidth*2+4, srcWidth, srcHeight);
   }
+
+#ifdef USE_OPENGL
+  if (openGL) {
+    int mult = 1;
+
+    if(filterFunction) {
+      int pitch = srcWidth * 4 + 4;
+
+      filterFunction(pix + pitch,
+                     pitch,
+                     delta,
+                     (u8*)filterPix,
+                     srcWidth * 4 * 2,
+                     srcWidth,
+                     srcHeight);
+
+      glPixelStorei(GL_UNPACK_ROW_LENGTH, srcWidth << 1);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcWidth << 1, srcHeight << 1,
+                      GL_BGRA, GL_UNSIGNED_BYTE, filterPix);
+      mult = 2;
+    } else {
+      glPixelStorei(GL_UNPACK_ROW_LENGTH, srcWidth + 1);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcWidth, srcHeight,
+                      GL_BGRA, GL_UNSIGNED_BYTE, pix + ((srcWidth + 1) << 2));
+    }
+
+    glBegin(GL_TRIANGLE_STRIP);
+      glTexCoord2f(0.0f, 0.0f);
+      glVertex3i(0, 0, 0);
+      glTexCoord2f(mult * srcWidth / (GLfloat) textureSize, 0.0f);
+      glVertex3i(1, 0, 0);
+      glTexCoord2f(0.0f, mult * srcHeight / (GLfloat) textureSize);
+      glVertex3i(0, 1, 0);
+      glTexCoord2f(mult * srcWidth / (GLfloat) textureSize,
+                  mult * srcHeight / (GLfloat) textureSize);
+      glVertex3i(1, 1, 0);
+    glEnd();
+
+#ifdef AOS_SDL2
+SDL_GL_SwapWindow(window);
+#else
+    SDL_GL_SwapBuffers();
+#endif
+  } else {
+#endif
+
   
   if(filterFunction) {
     if(systemColorDepth == 16)
@@ -3058,6 +3180,10 @@ void systemDrawScreen()
   SDL_RenderPresent(renderer);
 #else
   SDL_Flip(surface);
+#endif
+//lol
+#ifdef USE_OPENGL
+}
 #endif
 }
 
@@ -3525,6 +3651,9 @@ void systemGbBorderOn()
 
 #ifdef AOS_SDL2
    flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
+#ifdef USE_OPENGL
+  flags = flags | SDL_WINDOW_OPENGL;
+#endif
 
    if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
       else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
