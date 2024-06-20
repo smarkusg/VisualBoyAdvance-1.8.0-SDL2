@@ -1829,9 +1829,10 @@ void sdlPollEvents()
       if (event.button.clicks > 1) {
         fullscreen = !fullscreen;
 
+        /*markus rem overcomplicated 
         if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
            else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-
+        */
         if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
            else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
 
@@ -1912,9 +1913,10 @@ void sdlPollEvents()
            (event.key.keysym.mod & KMOD_CTRL)) {
           fullscreen = !fullscreen;
 #ifdef AOS_SDL2 
+          /* markus rem overcomplicated 
           if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
              else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-
+          */
           if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
              else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
 
@@ -2617,15 +2619,17 @@ int main(int argc, char **argv)
              , 31, 0);
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+  /* markus rem overcomplicated 
   if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
        else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-
+  */
   texture = SDL_CreateTexture(renderer,
                                SDL_PIXELFORMAT_RGB565,
                                SDL_TEXTUREACCESS_STREAMING,
                                 destWidth, destHeight);
- 
+  /* markus rem overcomplicated 
   SDL_RenderSetLogicalSize(renderer, destWidth, destHeight);
+  */
   SDL_RenderClear(renderer);
 
   if(window == NULL) {
@@ -3531,15 +3535,20 @@ void systemGbBorderOn()
              , 31, 0);
 
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+  /* markus rem overcomplicated 
   if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
       else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
+  */
 
+  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
   texture = SDL_CreateTexture(renderer,
                                SDL_PIXELFORMAT_RGB565,
                                SDL_TEXTUREACCESS_STREAMING,
                                 destWidth, destHeight);
 
+  /* markus rem overcomplicated 
   SDL_RenderSetLogicalSize(renderer, destWidth, destHeight);
+  */
   SDL_RenderClear(renderer);
 
 #else
