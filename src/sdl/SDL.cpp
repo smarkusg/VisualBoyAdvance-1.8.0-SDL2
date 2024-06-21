@@ -1875,6 +1875,9 @@ void sdlCheckKeys()
 
 void sdlPollEvents()
 {
+#ifdef AOS_SDL2
+  SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+#endif
 
   SDL_Event event;
   while(SDL_PollEvent(&event)) {
@@ -1972,6 +1975,14 @@ void sdlPollEvents()
                        event.jaxis.axis,
                        event.jaxis.value);
       break;
+#ifdef AOS_SDL2
+      //SDL_DROP todo!!!
+     case SDL_DROPFILE: 
+       {
+          if (event.drop.file) systemMessage(0,"!!!! not implemented yet !!!! ..sorry",event.drop.file);
+       }
+       break;
+#endif
     case SDL_KEYDOWN:
 #ifndef AOS_SDL2 
       sdlUpdateKey(event.key.keysym.sym, true);
@@ -1991,6 +2002,8 @@ void sdlPollEvents()
           }
         }
         break;
+     
+
       case SDLK_b:
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
