@@ -27,7 +27,7 @@
 
 #include "../AutoBuild.h"
 //markus
-//#define AOS_SDL2 //SDL2_ON
+#define AOS_SDL2 //SDL2_ON
 #ifdef AOS_SDL2
 #include "SDL2/SDL.h"
 #else
@@ -148,6 +148,10 @@ SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 SDL_Texture *texture = NULL;
 SDL_Surface *surface = NULL;
+
+int desktopWidth = 0;
+int desktopHeight = 0;
+
 #else
 SDL_Surface *surface = NULL;
 SDL_Overlay *overlay = NULL;
@@ -1507,6 +1511,21 @@ static int sdlCalculateMaskWidth(u32 mask)
   return m - m2;
 }
 
+#ifdef AOS_SDL2
+//opengl sdl2 stuff
+void sdlReadDesktopVideoMode()
+{
+    SDL_DisplayMode dm;
+    SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(window), &dm);
+    desktopWidth = dm.w;
+    desktopHeight = dm.h;
+}
+
+static void sdlOpenGLScaleWithAspect(int w, int h)
+{
+    glViewport(0, 0, w, h);
+}
+#endif
 void sdlWriteState(int num)
 {
   char stateName[2048];
@@ -1894,6 +1913,16 @@ void sdlPollEvents()
         }
       }
       break;
+#else
+//markus resieze opengl sdl2
+    case SDL_WINDOWEVENT:
+      switch (event.window.event) {
+
+        case SDL_WINDOWEVENT_RESIZED:
+          if (openGL)
+            sdlOpenGLScaleWithAspect(event.window.data1, event.window.data2);
+          break;
+     }
 #endif
     case SDL_MOUSEMOTION:
     case SDL_MOUSEBUTTONUP:
@@ -1907,14 +1936,16 @@ void sdlPollEvents()
       if (event.button.clicks > 1) {
         fullscreen = !fullscreen;
 
-        /*markus rem overcomplicated 
-        if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
-           else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-        */
         if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
            else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
-
-
+        //opengl
+        if (openGL)
+          {
+            if (fullscreen)
+              sdlOpenGLScaleWithAspect(desktopWidth, desktopHeight);
+            else
+              sdlOpenGLScaleWithAspect(destWidth, destHeight);
+        }
 #ifndef __AMIGAOS4__
          SDL_RenderClear(renderer);
 #endif //AOS4
@@ -1991,12 +2022,17 @@ void sdlPollEvents()
            (event.key.keysym.mod & KMOD_CTRL)) {
           fullscreen = !fullscreen;
 #ifdef AOS_SDL2 
-          /* markus rem overcomplicated 
-          if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
-             else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-          */
-          if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+
+         if (SDL_FULL) SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
              else SDL_SetWindowFullscreen(window, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+
+         if (openGL)
+           {
+            if (fullscreen)
+              sdlOpenGLScaleWithAspect(desktopWidth, desktopHeight);
+            else
+              sdlOpenGLScaleWithAspect(destWidth, destHeight);
+          }
 
 #ifndef __AMIGAOS4__
           SDL_RenderClear(renderer);
@@ -2475,8 +2511,13 @@ int main(int argc, char **argv)
     flashSetSize(0x20000);
 
 //markus
+#ifdef AOS_SDL2 
+    sdlReadDesktopVideoMode();
+#endif
+
   if(fullscreen_window)
      SDL_FULL = (char *)"TRUE";
+//end markus
 
   rtcEnable(sdlRtcEnable ? true : false);
   agbPrintEnable(sdlAgbPrint ? true : false);
@@ -2671,28 +2712,21 @@ int main(int argc, char **argv)
 
 #ifdef AOS_SDL2
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
+  if(openGL) flags = flags | SDL_WINDOW_OPENGL;
 
  if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
        else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
 
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
-  surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
-             63488, 2016
-             , 31, 0);
-
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-  /* markus rem overcomplicated 
-  if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
-       else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-  */
-  texture = SDL_CreateTexture(renderer,
-                               SDL_PIXELFORMAT_RGB565,
-                               SDL_TEXTUREACCESS_STREAMING,
+
+  surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 32,
+                                   0x00FF0000, 0x0000FF00,
+                                   0x000000FF, 0xFF000000);
+  texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                SDL_TEXTUREACCESS_STREAMING,
                                 destWidth, destHeight);
-  /* markus rem overcomplicated 
-  SDL_RenderSetLogicalSize(renderer, destWidth, destHeight);
-  */
-  SDL_RenderClear(renderer);
+  SDL_RenderClear(renderer); //markus renderer dont need for opengl ? fixme !!!
 
   if(window == NULL) {
 #else
@@ -3652,31 +3686,21 @@ void systemGbBorderOn()
 
 #ifdef AOS_SDL2
    flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
+   if(openGL) flags = flags | SDL_WINDOW_OPENGL;
 
    if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
       else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
 
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
-  surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 16,
-             63488, 2016
-             , 31, 0);
-
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-  /* markus rem overcomplicated 
-  if (fullscreen) SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"letterbox");
-      else  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-  */
 
-  SDL_SetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE,"overscan");
-  texture = SDL_CreateTexture(renderer,
-                               SDL_PIXELFORMAT_RGB565,
-                               SDL_TEXTUREACCESS_STREAMING,
+  surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 32,
+                                   0x00FF0000, 0x0000FF00,
+                                   0x000000FF, 0xFF000000);
+  texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                SDL_TEXTUREACCESS_STREAMING,
                                 destWidth, destHeight);
-
-  /* markus rem overcomplicated 
-  SDL_RenderSetLogicalSize(renderer, destWidth, destHeight);
-  */
-  SDL_RenderClear(renderer);
+  SDL_RenderClear(renderer); //markus renderer dont need on opengl ? fixme !!!
 
 #else
 

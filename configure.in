@@ -131,7 +131,7 @@ if test "x$with_mmx" = xyes; then
 fi
 
 if test "x$enable_sdl" = xyes || test "x$enable_gtk" = xyes; then
-  SDL_VERSION=2.0.0
+  SDL_VERSION=1.2.0
   CXXFLAGS="$CXXFLAGS -fpermissive"
   AM_PATH_SDL($SDL_VERSION,[
   ],[
