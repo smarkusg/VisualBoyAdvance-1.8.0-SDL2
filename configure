@@ -755,6 +755,7 @@ enable_c_core
 enable_profiling
 with_mmx
 enable_sdl
+enable_opengl
 enable_gtk
 enable_dev
 enable_dependency_tracking
@@ -1418,6 +1419,7 @@ Optional Features:
   --enable-c-core         enable C core (default is no on x86 targets)
   --enable-profiling      enable profiling (default is yes)
   --enable-sdl            build the SDL interface (default is yes)
+  --enable-opengl         build with OpenGL support (default is yes)
   --enable-gtk=[VERSION]  build the GTK+ interface (default is no)
   --enable-dev            enable development features (default is yes)
   --disable-dependency-tracking Speeds up one-time builds
@@ -2840,6 +2842,14 @@ if test "${enable_sdl+set}" = set; then :
   enableval=$enable_sdl;
 else
   enable_sdl=yes
+fi
+
+
+# Check whether --enable-opengl was given.
+if test "${enable_opengl+set}" = set; then :
+  enableval=$enable_opengl;
+else
+  enable_opengl=yes
 fi
 
 
@@ -5799,7 +5809,7 @@ if test "x$with_mmx" = xyes; then
 fi
 
 if test "x$enable_sdl" = xyes || test "x$enable_gtk" = xyes; then
-  SDL_VERSION=2.0.0
+  SDL_VERSION=1.2.0
   CXXFLAGS="$CXXFLAGS -fpermissive"
 
 # Check whether --with-sdl-prefix was given.
@@ -5828,19 +5838,19 @@ fi
   if test x$sdl_exec_prefix != x ; then
      sdl_args="$sdl_args --exec-prefix=$sdl_exec_prefix"
      if test x${SDL_CONFIG+set} != xset ; then
-        SDL_CONFIG=$sdl_exec_prefix/bin/sdl2-config
+        SDL_CONFIG=$sdl_exec_prefix/bin/sdl-config
      fi
   fi
   if test x$sdl_prefix != x ; then
      sdl_args="$sdl_args --prefix=$sdl_prefix"
      if test x${SDL_CONFIG+set} != xset ; then
-        SDL_CONFIG=$sdl_prefix/bin/sdl2-config
+        SDL_CONFIG=$sdl_prefix/bin/sdl-config
      fi
   fi
 
 
-  # Extract the first word of "sdl2-config", so it can be a program name with args.
-set dummy sdl2-config; ac_word=$2
+  # Extract the first word of "sdl-config", so it can be a program name with args.
+set dummy sdl-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_path_SDL_CONFIG+:} false; then :
@@ -5954,11 +5964,11 @@ int main (int argc, char *argv[])
     }
   else
     {
-      printf("\n*** 'sdl2-config --version' returned %d.%d.%d, but the minimum version\n", $sdl_major_version, $sdl_minor_version, $sdl_micro_version);
-      printf("*** of SDL required is %d.%d.%d. If sdl2-config is correct, then it is\n", major, minor, micro);
+      printf("\n*** 'sdl-config --version' returned %d.%d.%d, but the minimum version\n", $sdl_major_version, $sdl_minor_version, $sdl_micro_version);
+      printf("*** of SDL required is %d.%d.%d. If sdl-config is correct, then it is\n", major, minor, micro);
       printf("*** best to upgrade to the required version.\n");
-      printf("*** If sdl2-config was wrong, set the environment variable SDL_CONFIG\n");
-      printf("*** to point to the correct copy of sdl2-config, and remove the file\n");
+      printf("*** If sdl-config was wrong, set the environment variable SDL_CONFIG\n");
+      printf("*** to point to the correct copy of sdl-config, and remove the file\n");
       printf("*** config.cache before re-running configure\n");
       return 1;
     }
@@ -5988,10 +5998,10 @@ $as_echo "yes" >&6; }
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
      if test "$SDL_CONFIG" = "no" ; then
-       echo "*** The sdl2-config script installed by SDL could not be found"
+       echo "*** The sdl-config script installed by SDL could not be found"
        echo "*** If SDL was installed in PREFIX, make sure PREFIX/bin is in"
        echo "*** your path, or set the SDL_CONFIG environment variable to the"
-       echo "*** full path to sdl2-config."
+       echo "*** full path to sdl-config."
      else
        if test -f conf.sdltest ; then
         :
@@ -6032,7 +6042,7 @@ else
    echo "*** The test program failed to compile or link. See the file config.log for the"
           echo "*** exact error that occured. This usually means SDL was incorrectly installed"
           echo "*** or that you have moved SDL since it was installed. In the latter case, you"
-          echo "*** may want to edit the sdl2-config script: $SDL_CONFIG"
+          echo "*** may want to edit the sdl-config script: $SDL_CONFIG"
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -6050,6 +6060,11 @@ rm -f core conftest.err conftest.$ac_objext \
 
   rm -f conf.sdltest
 
+fi
+
+if test "x$enable_opengl" = xyes; then
+  CXXFLAGS="$CXXFLAGS -DUSE_OPENGL"
+  VBA_LIBS="$VBA_LIBS -lGL"
 fi
 
 if test "x$enable_sdl" = xyes; then

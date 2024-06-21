@@ -22,18 +22,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "../AutoBuild.h"
-
-#ifdef USE_OPENGL
-# include <GL/gl.h>
-#endif
-
 //markus
-#define AOS_SDL2 //SDL2_ON
+//#define AOS_SDL2 //SDL2_ON
 #ifdef AOS_SDL2
 #include "SDL2/SDL.h"
-#undef USE_OPENGL //disable opengl
 #else
 #include "SDL.h"
 #endif 
@@ -144,6 +140,7 @@ struct EmulatedSystem emulator = {
 int debug_fprintf = 0;//simple stupid but it works
 
 int flags = 0;
+int mute = 0;
 
 #ifdef AOS_SDL2
 //new markus
@@ -185,6 +182,11 @@ int disableMMX = 0;
 int cartridgeType = 3;
 int sizeOption = 0;
 int captureFormat = 0;
+
+int openGL = 0;
+int textureSize = 256;
+GLuint screenTexture = 0;
+u8 *filterPix = 0;
 
 int fullscreen_window = 0;
 
@@ -286,13 +288,6 @@ int sdlAgbPrint = 0;
 int sdlMirroringEnable = 0;
 
 int sdlDefaultJoypad = 0;
-
-#ifdef USE_OPENGL
-int openGL = 0;
-int textureSize = 256;
-GLuint screenTexture = 0;
-u8 *filterPix = 0;
-#endif
 
 extern void debuggerSignal(int,int);
 
@@ -397,7 +392,6 @@ u16 defaultMotion[4] = {
   SDLK_KP4, SDLK_KP6, SDLK_KP8, SDLK_KP2
 #endif
 };
-
 struct option sdlOptions[] = {
   { "agb-print", no_argument, &sdlAgbPrint, 1 },
   { "auto-frameskip", no_argument, &autoFrameSkip, 1 },  
@@ -441,7 +435,10 @@ struct option sdlOptions[] = {
   { "no-opengl", no_argument, &openGL, 0 },
 #endif
   { "no-pause-when-inactive", no_argument, &pauseWhenInactive, 0 },
+#ifdef AOS_SDL2
   { "sdl2wfd", no_argument, &fullscreen_window, 1 },
+#endif
+  { "mute", no_argument, &mute, 1 },
   { "no-rtc", no_argument, &sdlRtcEnable, 0 },
   { "no-show-speed", no_argument, &showSpeed, 0 },
   { "no-throttle", no_argument, &throttle, 0 },
@@ -1067,6 +1064,51 @@ FILE *sdlFindFile(const char *name)
   return NULL;
 }
 
+void sdlOpenGLInit(int w, int h)
+{
+  float screenAspect = (float) srcWidth / srcHeight,
+        windowAspect = (float) w / h;
+
+  if(glIsTexture(screenTexture))
+  glDeleteTextures(1, &screenTexture);
+
+  glDisable(GL_CULL_FACE);
+  glEnable(GL_TEXTURE_2D);
+
+  if(windowAspect == screenAspect)
+    glViewport(0, 0, w, h);
+  else if (windowAspect < screenAspect) {
+    int height = (int)(w / screenAspect);
+    glViewport(0, (h - height) / 2, w, height);
+  } else {
+    int width = (int)(h * screenAspect);
+    glViewport((w - width) / 2, 0, width, h);
+  }
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+
+  glOrtho(0.0, 1.0, 1.0, 0.0, 0.0, 1.0);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  glGenTextures(1, &screenTexture);
+  glBindTexture(GL_TEXTURE_2D, screenTexture);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
+
+  textureSize = filterFunction ? 512 : 256;
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0,
+               GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
+//  glClearColor(0.0,0.0,0.0,1.0);
+  glClear( GL_COLOR_BUFFER_BIT );
+}
+
 void sdlReadPreferences(FILE *f)
 {
   char buffer[2048];
@@ -1216,6 +1258,8 @@ void sdlReadPreferences(FILE *f)
         sizeOption = 1;
     } else if(!strcmp(key, "fullScreen")) {
       fullscreen = sdlFromHex(value) ? 1 : 0;
+    } else if(!strcmp(key, "openGL")) {
+     openGL = sdlFromHex(value);
     } else if(!strcmp(key, "useBios")) {
       useBios = sdlFromHex(value) ? true : false;
     } else if(!strcmp(key, "skipBios")) {
@@ -1308,12 +1352,10 @@ void sdlReadPreferences(FILE *f)
 #ifdef MMX
       cpu_mmx = sdlFromHex(value) ? false : true;
 #endif
-#ifdef USE_OPENGL
-    } else if(!strcmp(key, "openGL")) {
-      openGL = sdlFromHex(value);
-#endif
+#ifdef AOS_SDL2
     } else if(!strcmp(key, "sdl2wfd")) {
       fullscreen_window = sdlFromHex(value) ? false : true;
+#endif
     } else if(!strcmp(key, "pauseWhenInactive")) {
       pauseWhenInactive = sdlFromHex(value) ? true : false;
     } else if(!strcmp(key, "agbPrint")) {
@@ -1561,50 +1603,6 @@ void sdlReadBattery()
     systemScreenMessage("Loaded battery");
 #endif
 }
-
-#ifdef USE_OPENGL
-void sdlOpenGLInit(int w, int h)
-{
-  float screenAspect = (float) srcWidth / srcHeight,
-        windowAspect = (float) w / h;
-
-  if(glIsTexture(screenTexture))
-    glDeleteTextures(1, &screenTexture);
-
-  glDisable(GL_CULL_FACE);
-  glEnable(GL_TEXTURE_2D);
-
-  if(windowAspect == screenAspect)
-    glViewport(0, 0, w, h);
-  else if (windowAspect < screenAspect) {
-    int height = (int)(w / screenAspect);
-    glViewport(0, (h - height) / 2, w, height);
-  } else {// if (windowAspect > screenAspect)
-    int width = (int)(h * screenAspect);
-    glViewport((w - width) / 2, 0, width, h);
-  }
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-
-  glOrtho(0.0, 1.0, 1.0, 0.0, 0.0, 1.0);
-
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-
-  glGenTextures(1, &screenTexture);
-  glBindTexture(GL_TEXTURE_2D, screenTexture);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
-
-  textureSize = filterFunction ? 512 : 256;
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0,
-               GL_BGRA, GL_UNSIGNED_BYTE, NULL);
-}
-#endif
 
 #define MOD_KEYS    (KMOD_CTRL|KMOD_SHIFT|KMOD_ALT)
 #define MOD_NOCTRL  (KMOD_SHIFT|KMOD_ALT)
@@ -1865,7 +1863,18 @@ void sdlPollEvents()
     case SDL_QUIT:
       emulating = 0;
       break;
+
 #ifndef AOS_SDL2
+    case SDL_VIDEORESIZE:
+    // markus sdl resize
+        if (openGL)
+         {
+            SDL_SetVideoMode(event.resize.w, event.resize.h, 16,
+                       SDL_OPENGL | SDL_RESIZABLE |
+                       (fullscreen ? SDL_FULLSCREEN : 0));
+            sdlOpenGLInit(event.resize.w, event.resize.h);
+        }
+     break;
     case SDL_ACTIVEEVENT:
       if(pauseWhenInactive && (event.active.state & SDL_APPINPUTFOCUS)) {
         active = event.active.gain;
@@ -1933,7 +1942,7 @@ void sdlPollEvents()
                        event.jaxis.value);
       break;
     case SDL_KEYDOWN:
-#ifdef AOS_SDL2 
+#ifndef AOS_SDL2 
       sdlUpdateKey(event.key.keysym.sym, true);
 #else
       if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, true);
@@ -1996,9 +2005,14 @@ void sdlPollEvents()
 #else
           if(fullscreen)
             flags |= SDL_FULLSCREEN;
+           if(openGL)
+            flags |= SDL_OPENGL | SDL_RESIZABLE;
           SDL_SetVideoMode(destWidth, destHeight, systemColorDepth, flags);
-          //          if(SDL_WM_ToggleFullScreen(surface))
-          //          fullscreen = !fullscreen;
+
+         if(openGL)
+         sdlOpenGLInit(destWidth, destHeight);
+
+
 #endif //AOS_SDL2
         }
         break;
@@ -2087,7 +2101,7 @@ void sdlPollEvents()
       default:
         break;
       }
-#ifdef AOS_SDL2 
+#ifndef AOS_SDL2 
       sdlUpdateKey(event.key.keysym.sym, false);
 #else
       if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, false);
@@ -2107,16 +2121,10 @@ Options:\n\
   -2, --video-2x               2x\n\
   -3, --video-3x               3x\n\
   -4, --video-4x               4x\n\
-");
-#ifdef USE_OPENGL
-  printf("\
   -O, --opengl=MODE            Set OpenGL texture filter\n\
       --no-opengl               0 - Disable OpenGL\n\
       --opengl-nearest          1 - No filtering\n\
       --opengl-bilinear         2 - Bilinear filtering\n\
-");
-#endif
-  printf("\
   -F, --fullscreen             Full screen\n\
   -G, --gdb=PROTOCOL           GNU Remote Stub mode:\n\
                                 tcp      - use TCP at port 55555\n\
@@ -2183,6 +2191,7 @@ Long options only:\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
       --no-throttle            Disable thrrotle\n\
+      --mute                   Disable sound\n\
 ");
 #ifdef AOS_SDL2
   printf("\
@@ -2284,7 +2293,7 @@ int main(int argc, char **argv)
 
   while((op = getopt_long(argc,
                           argv,
-                          "FNO:T:Y:G:D:b:c:df:hi:p::s:t:v:1234",
+                           "FNO:T:Y:G:D:b:c:df:hi:p::s:t:v:1234",
                           sdlOptions,
                           NULL)) != -1) {
     switch(op) {
@@ -2433,18 +2442,16 @@ int main(int argc, char **argv)
     case '4':
       sizeOption = 3;
       break;
+    case 'O':
+      if(optarg) {
+       openGL = atoi(optarg);
+        if (openGL < 0 || openGL > 2)
+         openGL = 1;
+     } else
+        openGL = 0;
+    break;
     case '?':
       sdlPrintUsage = 1;
-      break;
-    case 'O':
-#ifdef USE_OPENGL
-      if(optarg) {
-        openGL = atoi(optarg);
-        if (openGL < 0 || openGL > 2)
-          openGL = 1;
-      } else
-        openGL = 0;
-#endif
       break;
     }
   }
@@ -2483,10 +2490,8 @@ int main(int argc, char **argv)
   }
 
   if(filter) {
-#ifdef USE_OPENGL
     if(!openGL)
-#endif
-    sizeOption = 1;
+     sizeOption = 1;
   }
 
   for(int i = 0; i < 24;) {
@@ -2616,6 +2621,8 @@ int main(int argc, char **argv)
   
     flags = SDL_INIT_VIDEO|SDL_INIT_AUDIO|
     SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE;
+  // markus mute - loses synchronization with SDL, opengl works fine
+  if(mute) soundOffFlag = true;
 
   if(soundOffFlag)
     flags ^= SDL_INIT_AUDIO;
@@ -2664,9 +2671,6 @@ int main(int argc, char **argv)
 
 #ifdef AOS_SDL2
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
-#ifdef USE_OPENGL
-  flags = flags | SDL_WINDOW_OPENGL;
-#endif
 
  if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
        else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
@@ -2692,9 +2696,15 @@ int main(int argc, char **argv)
 
   if(window == NULL) {
 #else
-  surface = SDL_SetVideoMode(destWidth, destHeight, 16,
-                             SDL_ANYFORMAT|SDL_HWSURFACE|SDL_DOUBLEBUF|
-                             (fullscreen ? SDL_FULLSCREEN : 0));
+  flags = SDL_ANYFORMAT | (fullscreen ? SDL_FULLSCREEN : 0);
+   if(openGL) {
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+     flags |= SDL_OPENGL | SDL_RESIZABLE;
+   } else
+      flags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
+
+  surface = SDL_SetVideoMode(destWidth, destHeight, 16, flags);
+
   if(surface == NULL) {
 #endif
     systemMessage(0, "Failed to set window");
@@ -2738,7 +2748,10 @@ int main(int argc, char **argv)
 #endif
 
   if (debug_fprintf) fprintf(stderr,"Color depth: %d\n", systemColorDepth);
-  
+//markus
+  if (openGL)
+     if (debug_fprintf) fprintf(stderr,"OpenGL initialized\n");
+
   if(systemColorDepth == 16) {
     if(sdlCalculateMaskWidth(surface->format->Gmask) == 6) {
       Init_2xSaI(565);
@@ -2854,7 +2867,7 @@ int main(int argc, char **argv)
       break;
     }
   }
-  
+
   if(systemColorDepth == 16) {
     switch(ifbType) {
     case 0:
@@ -2889,13 +2902,10 @@ int main(int argc, char **argv)
     memset(delta, 255, 322*242*4);
   }
 
-#ifdef USE_OPENGL
-  if(openGL) {
+ if(openGL) {
     filterPix = (u8 *)calloc(1, 4 * 4 * 256 * 240);
-
     sdlOpenGLInit(destWidth, destHeight);
   }
-#endif
 
   emulating = 1;
   renderedFrames = 0;
@@ -2906,7 +2916,6 @@ int main(int argc, char **argv)
   autoFrameSkipLastTime = throttleLastTime = systemGetClock();
 
 #ifdef AOS_SDL2
-   {
 #ifdef __AMIGAOS4__
     char  w_title[512];
   strcpy(w_title,AMIGA_VERSION);
@@ -2918,7 +2927,7 @@ int main(int argc, char **argv)
 #else
   SDL_WM_SetCaption("VisualBoyAdvance", NULL);
 #endif
-  }
+
   while(emulating) {
     if(!paused && active) {
       if(debugger && emulator.emuHasDebugger)
@@ -2967,19 +2976,18 @@ int main(int argc, char **argv)
     delta = NULL;
   }
 
+//begin free
+  if(filterPix) {
+    free(filterPix);
+    filterPix = NULL;
+ }
+
 #ifdef AOS_SDL2
   // Close and destroy the window
   SDL_DestroyTexture(texture);
   SDL_FreeSurface(surface);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);        
-#endif
-
-#ifdef USE_OPENGL
-  if(filterPix) {
-    free(filterPix);
-    filterPix = NULL;
-  }
 #endif
 
   SDL_Quit();
@@ -3006,11 +3014,9 @@ void systemMessage(int num, const char *msg, ...)
 void systemDrawScreen()
 {
   renderedFrames++;
-  
-#ifdef USE_OPENGL
+
   if(!openGL)
-#endif
-  SDL_LockSurface(surface);
+   SDL_LockSurface(surface);
 
   if(screenMessage) {
     if(cartridgeType == 1 && gbBorderOn) {
@@ -3032,8 +3038,7 @@ void systemDrawScreen()
       ifbFunction(pix+destWidth*2+4, destWidth*2+4, srcWidth, srcHeight);
   }
 
-#ifdef USE_OPENGL
-  if (openGL) {
+if (openGL) {
     int mult = 1;
 
     if(filterFunction) {
@@ -3069,15 +3074,13 @@ void systemDrawScreen()
       glVertex3i(1, 1, 0);
     glEnd();
 
-#ifdef AOS_SDL2
-SDL_GL_SwapWindow(window);
+#ifndef AOS_SDL2
+   SDL_GL_SwapBuffers();
 #else
-    SDL_GL_SwapBuffers();
+ SDL_GL_SwapWindow(window);
 #endif
   } else {
-#endif
-
-  
+//no opengl
   if(filterFunction) {
     if(systemColorDepth == 16)
       filterFunction(pix+destWidth+4,destWidth+4, delta,
@@ -3181,10 +3184,7 @@ SDL_GL_SwapWindow(window);
 #else
   SDL_Flip(surface);
 #endif
-//lol
-#ifdef USE_OPENGL
-}
-#endif
+ } //end noopengl
 }
 
 bool systemReadJoypads()
@@ -3639,6 +3639,7 @@ inline void RGBtoYUV(Uint8 *rgb, int *yuv)
 
 void systemGbBorderOn()
 {
+  long flags;
 
   srcWidth = 256;
   srcHeight = 224;
@@ -3651,9 +3652,6 @@ void systemGbBorderOn()
 
 #ifdef AOS_SDL2
    flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
-#ifdef USE_OPENGL
-  flags = flags | SDL_WINDOW_OPENGL;
-#endif
 
    if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
       else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
@@ -3682,9 +3680,15 @@ void systemGbBorderOn()
 
 #else
 
-  surface = SDL_SetVideoMode(destWidth, destHeight, 16,
-                             SDL_ANYFORMAT|SDL_HWSURFACE|SDL_DOUBLEBUF|
-                             (fullscreen ? SDL_FULLSCREEN : 0));
+  flags = SDL_ANYFORMAT | (fullscreen ? SDL_FULLSCREEN : 0);
+ if(openGL) {
+   flags |= SDL_OPENGL | SDL_RESIZABLE;
+  } else
+   flags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
+
+ surface = SDL_SetVideoMode(destWidth, destHeight, 16, flags);
+ if(openGL)
+  sdlOpenGLInit(destWidth, destHeight);
 #endif
 
 #ifndef C_CORE

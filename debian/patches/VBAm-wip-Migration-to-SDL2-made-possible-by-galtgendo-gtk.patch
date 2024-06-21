@@ -1,0 +1,914 @@
+From c8343267fc742678c5bfb6a9c65857417d91e5ee Mon Sep 17 00:00:00 2001
+From: Zach Bacon <11doctorwhocanada@gmail.com>
+Date: Wed, 18 Nov 2015 21:34:38 -0500
+Subject: [PATCH 1350/3147] <wip> Migration to SDL2 made possible by 
+ galtgendo, gtk changes to follow.
+
+---
+ CMakeLists.txt              |  19 +--
+ CMakeScripts/FindSDL2.cmake | 169 ++++++++++++++++++++++
+ src/common/SoundSDL.cpp     |  20 +--
+ src/common/SoundSDL.h       |   1 +
+ src/sdl/SDL.cpp             | 279 +++++++++++++++++++++++++++++++-----
+ src/sdl/inputSDL.cpp        |  18 +--
+ 6 files changed, 444 insertions(+), 62 deletions(-)
+ create mode 100644 CMakeScripts/FindSDL2.cmake
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0f8e203b..7f9d3a42 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -12,6 +12,7 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR})
+ 
+ option( ENABLE_SDL "Build the SDL port" ON )
+ option( ENABLE_GTK "Build the GTK+ GUI" OFF )
++option( ENABLE_GTK3 "Build the GTK+ GUI" OFF )
+ option( ENABLE_WX "Build the wxWidgets port" ON )
+ option( ENABLE_DEBUGGER "Enable the debugger" ON )
+ option( ENABLE_NLS "Enable translations" ON )
+@@ -64,7 +65,7 @@ ENDIF( NOT VERSION )
+ # OS X users will have to compile and install SDL from source.
+ if( APPLE AND ENABLE_SDL )
+     ADD_DEFINITIONS (-DwxMAC_USE_CORE_GRAPHICS )
+-    SET(SDLMAIN_LIBRARY "-lSDLmain")
++    SET(SDL2MAIN_LIBRARY "-lSDL2main")
+ endif( APPLE AND ENABLE_SDL )
+ 
+ # Add support for MacPorts and Homebrew on OS X
+@@ -107,7 +108,7 @@ endif( ENABLE_ASM_SCALERS )
+ FIND_PACKAGE ( ZLIB REQUIRED )
+ FIND_PACKAGE ( PNG REQUIRED )
+ FIND_PACKAGE ( OpenGL REQUIRED )
+-FIND_PACKAGE ( SDL REQUIRED )
++FIND_PACKAGE ( SDL2 REQUIRED )
+ 
+ if( ENABLE_LINK )
+     if( WIN32 )
+@@ -119,7 +120,7 @@ endif( ENABLE_LINK )
+ SET(VBAMCORE_LIBS
+     vbamcore
+     fex
+-    ${SDL_LIBRARY}
++    ${SDL2_LIBRARY}
+     ${SFML_LIBRARIES}
+     ${OPENGL_LIBRARIES}
+     ${ZLIB_LIBRARY}
+@@ -369,7 +370,7 @@ INCLUDE_DIRECTORIES(
+     ${ZLIB_INCLUDE_DIR}
+     fex
+     ${PNG_INCLUDE_DIR}
+-    ${SDL_INCLUDE_DIR}
++    ${SDL2_INCLUDE_DIR}
+ )
+ 
+ IF( ENABLE_FFMPEG )
+@@ -417,24 +418,24 @@ IF( ENABLE_SDL )
+ 		INSTALL(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/vbam DESTINATION bin)
+ 	ENDIF( WIN32 )
+ 		INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/sdl/vbam.cfg-example
+-				DESTINATION ${SYSCONFDIR}
++				DESTINATION ${CMAKE_INSTALL_PREFIX}/${SYSCONFDIR}
+ 				RENAME vbam.cfg)
+ ENDIF( ENABLE_SDL )
+ 
+-IF( ENABLE_GTK )
++IF( ENABLE_GTK OR ENABLE_GTK3 )
+ 	add_subdirectory (src/gtk)
+-ENDIF( ENABLE_GTK )
++ENDIF( ENABLE_GTK OR ENABLE_GTK3 )
+ 
+ IF( ENABLE_WX )
+     add_subdirectory(src/wx)
+ ENDIF( ENABLE_WX )
+ 
+-if( ENABLE_GTK OR ENABLE_WX )
++if( ENABLE_GTK OR ENABLE_GTK3 OR ENABLE_WX )
+     # Native Language Support
+     if( ENABLE_NLS )
+         add_subdirectory(po)
+     endif( ENABLE_NLS )
+-endif( ENABLE_GTK OR ENABLE_WX )
++endif( ENABLE_GTK OR ENABLE_GTK3 OR ENABLE_WX )
+ INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/vba-over.ini DESTINATION ${DATA_INSTALL_DIR})
+ IF(NOT APPLE)
+     INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/gtk/icons/ DESTINATION share/icons/hicolor PATTERN ".svn" EXCLUDE)
+diff --git a/CMakeScripts/FindSDL2.cmake b/CMakeScripts/FindSDL2.cmake
+new file mode 100644
+index 00000000..026dc34e
+--- /dev/null
++++ b/CMakeScripts/FindSDL2.cmake
+@@ -0,0 +1,169 @@
++
++# This module defines
++# SDL2_LIBRARY, the name of the library to link against
++# SDL2_FOUND, if false, do not try to link to SDL2
++# SDL2_INCLUDE_DIR, where to find SDL.h
++#
++# This module responds to the the flag:
++# SDL2_BUILDING_LIBRARY
++# If this is defined, then no SDL2main will be linked in because
++# only applications need main().
++# Otherwise, it is assumed you are building an application and this
++# module will attempt to locate and set the the proper link flags
++# as part of the returned SDL2_LIBRARY variable.
++#
++# Don't forget to include SDLmain.h and SDLmain.m your project for the
++# OS X framework based version. (Other versions link to -lSDL2main which
++# this module will try to find on your behalf.) Also for OS X, this
++# module will automatically add the -framework Cocoa on your behalf.
++#
++#
++# Additional Note: If you see an empty SDL2_LIBRARY_TEMP in your configuration
++# and no SDL2_LIBRARY, it means CMake did not find your SDL2 library
++# (SDL2.dll, libsdl2.so, SDL2.framework, etc).
++# Set SDL2_LIBRARY_TEMP to point to your SDL2 library, and configure again.
++# Similarly, if you see an empty SDL2MAIN_LIBRARY, you should set this value
++# as appropriate. These values are used to generate the final SDL2_LIBRARY
++# variable, but when these values are unset, SDL2_LIBRARY does not get created.
++#
++#
++# $SDL2DIR is an environment variable that would
++# correspond to the ./configure --prefix=$SDL2DIR
++# used in building SDL2.
++# l.e.galup  9-20-02
++#
++# Modified by Eric Wing.
++# Added code to assist with automated building by using environmental variables
++# and providing a more controlled/consistent search behavior.
++# Added new modifications to recognize OS X frameworks and
++# additional Unix paths (FreeBSD, etc).
++# Also corrected the header search path to follow "proper" SDL guidelines.
++# Added a search for SDL2main which is needed by some platforms.
++# Added a search for threads which is needed by some platforms.
++# Added needed compile switches for MinGW.
++#
++# On OSX, this will prefer the Framework version (if found) over others.
++# People will have to manually change the cache values of
++# SDL2_LIBRARY to override this selection or set the CMake environment
++# CMAKE_INCLUDE_PATH to modify the search paths.
++#
++# Note that the header path has changed from SDL2/SDL.h to just SDL.h
++# This needed to change because "proper" SDL convention
++# is #include "SDL.h", not <SDL2/SDL.h>. This is done for portability
++# reasons because not all systems place things in SDL2/ (see FreeBSD).
++
++#=============================================================================
++# Copyright 2003-2009 Kitware, Inc.
++#
++# Distributed under the OSI-approved BSD License (the "License");
++# see accompanying file Copyright.txt for details.
++#
++# This software is distributed WITHOUT ANY WARRANTY; without even the
++# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++# See the License for more information.
++#=============================================================================
++# (To distribute this file outside of CMake, substitute the full
++#  License text for the above reference.)
++
++message("<FindSDL2.cmake>")
++
++SET(SDL2_SEARCH_PATHS
++	~/Library/Frameworks
++	/Library/Frameworks
++	/usr/local
++	/usr
++	/sw # Fink
++	/opt/local # DarwinPorts
++	/opt/csw # Blastwave
++	/opt
++	${SDL2_PATH}
++)
++
++FIND_PATH(SDL2_INCLUDE_DIR SDL.h
++	HINTS
++	$ENV{SDL2DIR}
++	PATH_SUFFIXES include/SDL2 include
++	PATHS ${SDL2_SEARCH_PATHS}
++)
++
++FIND_LIBRARY(SDL2_LIBRARY_TEMP
++	NAMES SDL2
++	HINTS
++	$ENV{SDL2DIR}
++	PATH_SUFFIXES lib64 lib
++	PATHS ${SDL2_SEARCH_PATHS}
++)
++
++IF(NOT SDL2_BUILDING_LIBRARY)
++	IF(NOT ${SDL2_INCLUDE_DIR} MATCHES ".framework")
++		# Non-OS X framework versions expect you to also dynamically link to
++		# SDL2main. This is mainly for Windows and OS X. Other (Unix) platforms
++		# seem to provide SDL2main for compatibility even though they don't
++		# necessarily need it.
++		FIND_LIBRARY(SDL2MAIN_LIBRARY
++			NAMES SDL2main
++			HINTS
++			$ENV{SDL2DIR}
++			PATH_SUFFIXES lib64 lib
++			PATHS ${SDL2_SEARCH_PATHS}
++		)
++	ENDIF(NOT ${SDL2_INCLUDE_DIR} MATCHES ".framework")
++ENDIF(NOT SDL2_BUILDING_LIBRARY)
++
++# SDL2 may require threads on your system.
++# The Apple build may not need an explicit flag because one of the
++# frameworks may already provide it.
++# But for non-OSX systems, I will use the CMake Threads package.
++IF(NOT APPLE)
++	FIND_PACKAGE(Threads)
++ENDIF(NOT APPLE)
++
++# MinGW needs an additional library, mwindows
++# It's total link flags should look like -lmingw32 -lSDL2main -lSDL2 -lmwindows
++# (Actually on second look, I think it only needs one of the m* libraries.)
++IF(MINGW)
++	SET(MINGW32_LIBRARY mingw32 CACHE STRING "mwindows for MinGW")
++ENDIF(MINGW)
++
++IF(SDL2_LIBRARY_TEMP)
++	# For SDL2main
++	IF(NOT SDL2_BUILDING_LIBRARY)
++		IF(SDL2MAIN_LIBRARY)
++			SET(SDL2_LIBRARY_TEMP ${SDL2MAIN_LIBRARY} ${SDL2_LIBRARY_TEMP})
++		ENDIF(SDL2MAIN_LIBRARY)
++	ENDIF(NOT SDL2_BUILDING_LIBRARY)
++
++	# For OS X, SDL2 uses Cocoa as a backend so it must link to Cocoa.
++	# CMake doesn't display the -framework Cocoa string in the UI even
++	# though it actually is there if I modify a pre-used variable.
++	# I think it has something to do with the CACHE STRING.
++	# So I use a temporary variable until the end so I can set the
++	# "real" variable in one-shot.
++	IF(APPLE)
++		SET(SDL2_LIBRARY_TEMP ${SDL2_LIBRARY_TEMP} "-framework Cocoa")
++	ENDIF(APPLE)
++
++	# For threads, as mentioned Apple doesn't need this.
++	# In fact, there seems to be a problem if I used the Threads package
++	# and try using this line, so I'm just skipping it entirely for OS X.
++	IF(NOT APPLE)
++		SET(SDL2_LIBRARY_TEMP ${SDL2_LIBRARY_TEMP} ${CMAKE_THREAD_LIBS_INIT})
++	ENDIF(NOT APPLE)
++
++	# For MinGW library
++	IF(MINGW)
++		SET(SDL2_LIBRARY_TEMP ${MINGW32_LIBRARY} ${SDL2_LIBRARY_TEMP})
++	ENDIF(MINGW)
++
++	# Set the final string here so the GUI reflects the final state.
++	SET(SDL2_LIBRARY ${SDL2_LIBRARY_TEMP} CACHE STRING "Where the SDL2 Library can be found")
++	# Set the temp variable to INTERNAL so it is not seen in the CMake GUI
++	SET(SDL2_LIBRARY_TEMP "${SDL2_LIBRARY_TEMP}" CACHE INTERNAL "")
++ENDIF(SDL2_LIBRARY_TEMP)
++
++message("</FindSDL2.cmake>")
++
++INCLUDE(FindPackageHandleStandardArgs)
++
++FIND_PACKAGE_HANDLE_STANDARD_ARGS(SDL2 REQUIRED_VARS SDL2_LIBRARY SDL2_INCLUDE_DIR)
++
+diff --git a/src/common/SoundSDL.cpp b/src/common/SoundSDL.cpp
+index d1dab3b0..d3a96c34 100644
+--- a/src/common/SoundSDL.cpp
++++ b/src/common/SoundSDL.cpp
+@@ -27,8 +27,9 @@ const float SoundSDL::_delay = 0.032f;
+ 
+ SoundSDL::SoundSDL():
+ 	_rbuf(0),
+-	_initialized(false),
+-	current_rate(0)
++	_dev(-1),
++	current_rate(0),
++	_initialized(false)
+ {
+ 
+ }
+@@ -66,8 +67,8 @@ void SoundSDL::write(u16 * finalWave, int length)
+ 	if (!_initialized)
+ 		return;
+ 
+-	if (SDL_GetAudioStatus() != SDL_AUDIO_PLAYING)
+-		SDL_PauseAudio(0);
++	if (SDL_GetAudioDeviceStatus(_dev) != SDL_AUDIO_PLAYING)
++		SDL_PauseAudioDevice(_dev, 0);
+ 
+ 	SDL_mutexP(_mutex);
+ 
+@@ -119,7 +120,10 @@ bool SoundSDL::init(long sampleRate)
+ 	audio.callback = soundCallback;
+ 	audio.userdata = this;
+ 
+-	if(SDL_OpenAudio(&audio, NULL))
++	if (!SDL_WasInit(SDL_INIT_AUDIO)) SDL_Init(SDL_INIT_AUDIO);
++
++	_dev = SDL_OpenAudioDevice(NULL, 0, &audio, NULL, SDL_AUDIO_ALLOW_ANY_CHANGE);
++	if(_dev < 0)
+ 	{
+ 		fprintf(stderr,"Failed to open audio: %s\n", SDL_GetError());
+ 		return false;
+@@ -158,7 +162,7 @@ SoundSDL::~SoundSDL()
+ 	SDL_DestroyMutex(_mutex);
+ 	_mutex = NULL;
+ 
+-	SDL_CloseAudio();
++	SDL_CloseAudioDevice(_dev);
+ 
+ 	emulating = iSave;
+ 
+@@ -170,7 +174,7 @@ void SoundSDL::pause()
+ 	if (!_initialized)
+ 		return;
+ 
+-	SDL_PauseAudio(1);
++	SDL_PauseAudioDevice(_dev, 1);
+ }
+ 
+ void SoundSDL::resume()
+@@ -178,7 +182,7 @@ void SoundSDL::resume()
+ 	if (!_initialized)
+ 		return;
+ 
+-	SDL_PauseAudio(0);
++	SDL_PauseAudioDevice(_dev, 0);
+ }
+ 
+ void SoundSDL::reset()
+diff --git a/src/common/SoundSDL.h b/src/common/SoundSDL.h
+index 5e3dcc01..b196e282 100644
+--- a/src/common/SoundSDL.h
++++ b/src/common/SoundSDL.h
+@@ -41,6 +41,7 @@ private:
+ 	SDL_mutex * _mutex;
+ 	SDL_sem *_semBufferFull;
+ 	SDL_sem *_semBufferEmpty;
++	SDL_AudioDeviceID _dev;
+ 
+ 	int current_rate;
+ 
+diff --git a/src/sdl/SDL.cpp b/src/sdl/SDL.cpp
+index d91b71ba..267202ff 100644
+--- a/src/sdl/SDL.cpp
++++ b/src/sdl/SDL.cpp
+@@ -112,6 +112,10 @@ struct EmulatedSystem emulator = {
+ };
+ 
+ SDL_Surface *surface = NULL;
++SDL_Window *window = NULL;
++SDL_Renderer *renderer = NULL;
++SDL_Texture *texture = NULL;
++SDL_GLContext glcontext;
+ 
+ int systemSpeed = 0;
+ int systemRedShift = 0;
+@@ -182,7 +186,7 @@ u32 throttleLastTime = 0;
+ bool pauseNextFrame = false;
+ int sdlMirroringEnable = 1;
+ 
+-static int ignore_first_resize_event = 0;
++//static int ignore_first_resize_event = 0;
+ 
+ /* forward */
+ void systemConsoleMessage(const char*);
+@@ -418,17 +422,70 @@ FILE *sdlFindFile(const char *name)
+ #endif // ! _WIN32
+ 
+   return NULL;
+-}void sdlOpenGLInit(int w, int h)
++}
++
++static void sdlOpenGLScaleWithAspect(int w, int h)
+ {
+   float screenAspect = (float) sizeX / sizeY,
+         windowAspect = (float) w / h;
+ 
++  if(windowAspect == screenAspect)
++    glViewport(0, 0, w, h);
++  else if (windowAspect < screenAspect) {
++    int height = (int)(w / screenAspect);
++    glViewport(0, (h - height) / 2, w, height);
++  } else {
++    int width = (int)(h * screenAspect);
++    glViewport((w - width) / 2, 0, width, h);
++  }
++}
++
++static void sdlOpenGLVideoResize()
++{
+   if(glIsTexture(screenTexture))
+   glDeleteTextures(1, &screenTexture);
+ 
++  glGenTextures(1, &screenTexture);
++  glBindTexture(GL_TEXTURE_2D, screenTexture);
++
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
++                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
++  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
++                  openGL == 2 ? GL_LINEAR : GL_NEAREST);
++
++  // Calculate texture size as a the smallest working power of two
++  float n1 = log10((float)destWidth ) / log10( 2.0f);
++  float n2 = log10((float)destHeight ) / log10( 2.0f);
++  float n = (n1 > n2)? n1 : n2;
++
++    // round up
++  if (((float)((int)n)) != n)
++    n = ((float)((int)n)) + 1.0f;
++
++  textureSize = (int)pow(2.0f, n);
++
++  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0,
++               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++
++  glClear( GL_COLOR_BUFFER_BIT );
++
++  sdlOpenGLScaleWithAspect(destWidth, destHeight);
++}
++
++void sdlOpenGLInit(int w, int h)
++{
++
++#if 0
++  float screenAspect = (float) sizeX / sizeY,
++        windowAspect = (float) w / h;
++
++  if(glIsTexture(screenTexture))
++  glDeleteTextures(1, &screenTexture);
++#endif
+   glDisable(GL_CULL_FACE);
+   glEnable(GL_TEXTURE_2D);
+ 
++#if 0
+   if(windowAspect == screenAspect)
+     glViewport(0, 0, w, h);
+   else if (windowAspect < screenAspect) {
+@@ -438,6 +495,7 @@ FILE *sdlFindFile(const char *name)
+     int width = (int)(h * screenAspect);
+     glViewport((w - width) / 2, 0, width, h);
+   }
++#endif
+ 
+   glMatrixMode(GL_PROJECTION);
+   glLoadIdentity();
+@@ -447,6 +505,7 @@ FILE *sdlFindFile(const char *name)
+   glMatrixMode(GL_MODELVIEW);
+   glLoadIdentity();
+ 
++#if 0
+   glGenTextures(1, &screenTexture);
+   glBindTexture(GL_TEXTURE_2D, screenTexture);
+ 
+@@ -467,10 +526,12 @@ FILE *sdlFindFile(const char *name)
+   textureSize = (int)pow(2.0f, n);
+ 
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize, textureSize, 0,
+-               GL_BGRA, GL_UNSIGNED_BYTE, NULL);
++               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++#endif
+ 
+   glClearColor(0.0,0.0,0.0,1.0);
+-  glClear( GL_COLOR_BUFFER_BIT );
++
++  sdlOpenGLVideoResize();
+ }
+ 
+ static void sdlApplyPerImagePreferences()
+@@ -720,9 +781,41 @@ void sdlReadBattery()
+ }
+ 
+ void sdlReadDesktopVideoMode() {
+-  const SDL_VideoInfo* vInfo = SDL_GetVideoInfo();
+-  desktopWidth = vInfo->current_w;
+-  desktopHeight = vInfo->current_h;
++  SDL_DisplayMode dm;
++  SDL_GetDesktopDisplayMode(SDL_GetWindowDisplayIndex(window), &dm);
++  desktopWidth = dm.w;
++  desktopHeight = dm.h;
++}
++
++static void sdlResizeVideo() {
++  filter_enlarge = getFilterEnlargeFactor(filter);
++
++  destWidth = filter_enlarge * sizeX;
++  destHeight = filter_enlarge * sizeY;
++
++  if(openGL) {
++    free(filterPix);
++    filterPix = (u8 *)calloc(1, (systemColorDepth >> 3) * destWidth * destHeight);
++    sdlOpenGLVideoResize();
++  }
++
++  if (surface) SDL_FreeSurface(surface);
++  if (texture) SDL_DestroyTexture(texture);
++
++  if (!openGL) {
++    surface = SDL_CreateRGBSurface(0, destWidth, destHeight, 32,
++                                   0x00FF0000, 0x0000FF00,
++                                   0x000000FF, 0xFF000000);
++    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
++                                SDL_TEXTUREACCESS_STREAMING,
++                                destWidth, destHeight);
++  }
++
++  if(!openGL && surface == NULL) {
++    systemMessage(0, "Failed to set video mode");
++    SDL_Quit();
++    exit(-1);
++  }
+ }
+ 
+ void sdlInitVideo() {
+@@ -735,24 +828,24 @@ void sdlInitVideo() {
+   destWidth = filter_enlarge * sizeX;
+   destHeight = filter_enlarge * sizeY;
+ 
+-  flags = SDL_ANYFORMAT | (fullScreen ? SDL_FULLSCREEN : 0);
++  flags = fullScreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+   if(openGL) {
+     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+-    flags |= SDL_OPENGL | SDL_RESIZABLE;
+-  } else
+-    flags |= SDL_HWSURFACE | SDL_DOUBLEBUF;
++    flags |= SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
++  }
+ 
+-  if (fullScreen && openGL) {
+-    screenWidth = desktopWidth;
+-    screenHeight = desktopHeight;
+-  } else {
+     screenWidth = destWidth;
+     screenHeight = destHeight;
+-  }
+ 
+-  surface = SDL_SetVideoMode(screenWidth, screenHeight, 0, flags);
++  if (window) SDL_DestroyWindow(window);
++  if (renderer) SDL_DestroyRenderer(renderer);
++  window = SDL_CreateWindow("VBA-M", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
++                            screenWidth, screenHeight, flags);
++  if (!openGL) {
++    renderer = SDL_CreateRenderer(window, -1, 0);
++  }
+ 
+-  if(surface == NULL) {
++  if(window == NULL) {
+     systemMessage(0, "Failed to set video mode");
+     SDL_Quit();
+     exit(-1);
+@@ -760,6 +853,7 @@ void sdlInitVideo() {
+ 
+   u32 rmask, gmask, bmask;
+ 
++#if 0
+   if(openGL) {
+     #if SDL_BYTEORDER == SDL_LIL_ENDIAN /* OpenGL RGBA masks */
+       rmask = 0x000000FF;
+@@ -775,11 +869,26 @@ void sdlInitVideo() {
+       gmask = surface->format->Gmask;
+       bmask = surface->format->Bmask;
+   }
++#endif
++
++  if(openGL) {
++    rmask = 0xFF000000;
++    gmask = 0x00FF0000;
++    bmask = 0x0000FF00;
++  } else {
++    rmask = 0x00FF0000;
++    gmask = 0x0000FF00;
++    bmask = 0x000000FF;
++  }
+ 
+   systemRedShift = sdlCalculateShift(rmask);
+   systemGreenShift = sdlCalculateShift(gmask);
+   systemBlueShift = sdlCalculateShift(bmask);
+ 
++  //printf("systemRedShift %d, systemGreenShift %d, systemBlueShift %d\n",
++  //         systemRedShift, systemGreenShift, systemBlueShift);
++  //  originally 3, 11, 19 -> 27, 19, 11
++
+   if(openGL) {
+       // Align to BGRA instead of ABGR
+       systemRedShift += 8;
+@@ -787,7 +896,24 @@ void sdlInitVideo() {
+       systemBlueShift += 8;
+   }
+ 
+-  systemColorDepth = surface->format->BitsPerPixel;
++#if 0
++  if (openGL) {
++    systemColorDepth = 0;
++    int i;
++    glcontext = SDL_GL_CreateContext(window);
++    SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &i);
++    systemColorDepth += i;
++    SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &i);
++    systemColorDepth += i;
++    SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &i);
++    systemColorDepth += i;
++    printf("color depth (without alpha) is %d\n", systemColorDepth);
++    SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &i);
++    systemColorDepth += i;
++    printf("color depth is %d\n", systemColorDepth);
++  }
++  else
++    systemColorDepth = 32;
+ 
+   if(systemColorDepth == 16) {
+     srcPitch = sizeX*2 + 4;
+@@ -798,6 +924,19 @@ void sdlInitVideo() {
+       srcPitch = sizeX*3;
+   }
+ 
++#endif
++
++  systemColorDepth = 32;
++  srcPitch = sizeX*4 + 4;
++
++  if (openGL) {
++    glcontext = SDL_GL_CreateContext(window);
++    sdlOpenGLInit(screenWidth, screenHeight);
++  }
++
++  sdlResizeVideo();
++
++#if 0
+   if(openGL) {
+     int scaledWidth = screenWidth * sdlOpenglScale;
+     int scaledHeight = screenHeight * sdlOpenglScale;
+@@ -821,8 +960,11 @@ void sdlInitVideo() {
+ 	ignore_first_resize_event	= 1;
+     }
+   }
+-
++#endif
+ }
++#if defined(KMOD_GUI)
++#define KMOD_META KMOD_GUI
++#endif
+ 
+ #define MOD_KEYS    (KMOD_CTRL|KMOD_SHIFT|KMOD_ALT|KMOD_META)
+ #define MOD_NOCTRL  (KMOD_SHIFT|KMOD_ALT|KMOD_META)
+@@ -962,6 +1104,7 @@ void sdlPollEvents()
+     case SDL_QUIT:
+       emulating = 0;
+       break;
++#if 0
+     case SDL_VIDEORESIZE:
+       if (ignore_first_resize_event)
+       {
+@@ -995,6 +1138,35 @@ void sdlPollEvents()
+         }
+       }
+       break;
++#endif
++    case SDL_WINDOWEVENT:
++      switch (event.window.event) {
++        case SDL_WINDOWEVENT_FOCUS_GAINED:
++          if(pauseWhenInactive)
++              if(paused) {
++                if(emulating) {
++                  paused = 0;
++                  soundResume();
++                }
++              }
++          break;
++        case SDL_WINDOWEVENT_FOCUS_LOST:
++          if(pauseWhenInactive) {
++              wasPaused = true;
++              if(emulating) {
++                paused = 1;
++                soundPause();
++              }
++
++              memset(delta,255,delta_size);
++          }
++          break;
++        case SDL_WINDOWEVENT_RESIZED:
++          if (openGL)
++            sdlOpenGLScaleWithAspect(event.window.data1, event.window.data2);
++          break;
++      }
++      break;
+     case SDL_MOUSEMOTION:
+     case SDL_MOUSEBUTTONUP:
+     case SDL_MOUSEBUTTONDOWN:
+@@ -1119,7 +1291,10 @@ void sdlPollEvents()
+         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
+            (event.key.keysym.mod & KMOD_CTRL)) {
+           paused = !paused;
+-          SDL_PauseAudio(paused);
++          if (paused)
++            soundPause();
++          else
++            soundResume();
+           if(paused)
+             wasPaused = true;
+ 	  systemConsoleMessage(paused?"Pause on":"Pause off");
+@@ -1132,7 +1307,15 @@ void sdlPollEvents()
+         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
+            (event.key.keysym.mod & KMOD_CTRL)) {
+           fullScreen = !fullScreen;
+-          sdlInitVideo();
++          SDL_SetWindowFullscreen(window, fullScreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
++          if (openGL)
++          {
++            if (fullScreen)
++              sdlOpenGLScaleWithAspect(desktopWidth, desktopHeight);
++            else
++              sdlOpenGLScaleWithAspect(destWidth, destHeight);
++          }
++          //sdlInitVideo();
+         }
+         break;
+       case SDLK_g:
+@@ -1144,8 +1327,11 @@ void sdlPollEvents()
+ 			      filter = (Filter)((filter + 1) % kInvalidFilter);
+ 		        filterFunction = initFilter(filter, systemColorDepth, sizeX);
+ 		      }
+-		      if (getFilterEnlargeFactor(filter) != filter_enlarge)
+-		        sdlInitVideo();
++		      if (getFilterEnlargeFactor(filter) != filter_enlarge) {
++		        sdlResizeVideo();
++		        if (!fullScreen)
++		          SDL_SetWindowSize(window, destWidth, destHeight);
++		      }
+ 		      systemScreenMessage(getFilterName(filter));
+         }
+         break;
+@@ -1286,7 +1472,10 @@ void lircCheckInput(void)
+             emulating = 0;
+           } else if( strcmp( CmdLIRC, "PAUSE" ) == 0 ) {
+             paused = !paused;
+-            SDL_PauseAudio(paused);
++            if (paused)
++              soundPause();
++            else
++              soundResume();
+             if(paused) wasPaused = true;
+             systemConsoleMessage( paused?"Pause on":"Pause off" );
+             systemScreenMessage( paused?"Pause on":"Pause off" );
+@@ -1693,15 +1882,14 @@ int main(int argc, char **argv)
+   if(debugger)
+     remoteInit();
+ 
+-  int flags = SDL_INIT_VIDEO|SDL_INIT_AUDIO|
+-    SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE;
++  int flags = SDL_INIT_VIDEO|SDL_INIT_TIMER;
+ 
+-  if(SDL_Init(flags)) {
++  if(SDL_Init(flags) < 0) {
+     systemMessage(0, "Failed to init SDL: %s", SDL_GetError());
+     exit(-1);
+   }
+ 
+-  if(SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
++  if(SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0) {
+     systemMessage(0, "Failed to init joystick support: %s", SDL_GetError());
+   }
+ 
+@@ -1770,8 +1958,6 @@ int main(int argc, char **argv)
+ 
+   autoFrameSkipLastTime = throttleLastTime = systemGetClock();
+ 
+-  SDL_WM_SetCaption("VBA-M", NULL);
+-
+   // now we can enable cheats?
+   {
+ 	int i;
+@@ -1827,6 +2013,11 @@ int main(int argc, char **argv)
+   remoteCleanUp();
+   soundShutdown();
+ 
++  if (openGL)
++  {
++    SDL_GL_DeleteContext(glcontext);
++  }
++
+   if(gbRom != NULL || rom != NULL) {
+     sdlWriteBattery();
+     emulator.emuCleanUp();
+@@ -1915,6 +2106,19 @@ void systemDrawScreen()
+   filterFunction(pix + srcPitch, srcPitch, delta, screen,
+                  destPitch, sizeX, sizeY);
+ 
++  if (openGL)
++  {
++    int bytes = (systemColorDepth >> 3);
++    for (int i = 0; i < destWidth; i++)
++      for (int j = 0; j < destHeight; j++)
++      {
++         u8 k;
++         k = filterPix[i * bytes + j*destPitch + 3];
++         filterPix[i * bytes + j*destPitch + 3] = filterPix[i * bytes + j*destPitch + 1];
++         filterPix[i * bytes + j*destPitch + 1] = k;
++      }
++  }
++
+   drawScreenMessage(screen, destPitch, 10, destHeight - 20, 3000);
+ 
+   if (showSpeed && fullScreen)
+@@ -1928,7 +2132,8 @@ void systemDrawScreen()
+                       GL_RGB, GL_UNSIGNED_SHORT_5_6_5, screen);
+     else
+       glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, destWidth, destHeight,
+-                      GL_BGRA, GL_UNSIGNED_INT_8_8_8_8, screen);
++                      //GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, screen);
++                      GL_RGBA, GL_UNSIGNED_BYTE, screen);
+ 
+     glBegin(GL_TRIANGLE_STRIP);
+       glTexCoord2f(0.0f, 0.0f);
+@@ -1941,17 +2146,19 @@ void systemDrawScreen()
+                   destHeight / (GLfloat) textureSize);
+ 	  glVertex3i(1, 1, 0);
+     glEnd();
+-    SDL_GL_SwapBuffers();
++    SDL_GL_SwapWindow(window);
+   } else {
+     SDL_UnlockSurface(surface);
+-    SDL_Flip(surface);
++    SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
++    SDL_RenderCopy(renderer, texture, NULL, NULL);
++    SDL_RenderPresent(renderer);
+   }
+ 
+ }
+ 
+ void systemSetTitle(const char *title)
+ {
+-  SDL_WM_SetCaption(title, NULL);
++  SDL_SetWindowTitle(window, title);
+ }
+ 
+ void systemShowSpeed(int speed)
+@@ -2177,7 +2384,7 @@ int systemGetSensorZ()
+ 
+ u8 systemGetSensorDarkness()
+ {
+-	return 0;
++	return 0xE8;
+ }
+ 
+ SoundDriver * systemSoundInit()
+diff --git a/src/sdl/inputSDL.cpp b/src/sdl/inputSDL.cpp
+index a57ebe02..3df3fe82 100644
+--- a/src/sdl/inputSDL.cpp
++++ b/src/sdl/inputSDL.cpp
+@@ -70,18 +70,18 @@ static uint32_t joypad[5][SDLBUTTONS_NUM] = {
+ };
+ 
+ static uint32_t motion[4] = {
+-  SDLK_KP4, SDLK_KP6, SDLK_KP8, SDLK_KP2
++  SDLK_KP_4, SDLK_KP_6, SDLK_KP_8, SDLK_KP_2
+ };
+ 
+ static uint32_t defaultMotion[4] = {
+-  SDLK_KP4, SDLK_KP6, SDLK_KP8, SDLK_KP2
++  SDLK_KP_4, SDLK_KP_6, SDLK_KP_8, SDLK_KP_2
+ };
+ 
+ 
+ static uint32_t sdlGetHatCode(const SDL_Event &event)
+ {
+     if (!event.jhat.value) return 0;
+-    
++
+     return (
+                 ((event.jhat.which + 1) << 16) |
+                 32 |
+@@ -220,17 +220,17 @@ static void sdlUpdateKey(uint32_t key, bool down)
+   int i;
+   for(int j = 0; j < 4; j++) {
+     for(i = 0 ; i < SDLBUTTONS_NUM; i++) {
+-      if((joypad[j][i] & 0xffff0000) == 0) {
++      //if((joypad[j][i] & 0xffff0000) == 0) {
+         if(key == joypad[j][i])
+           sdlButtons[j][i] = down;
+-      }
++      //}
+     }
+   }
+   for(i = 0 ; i < 4; i++) {
+-    if((motion[i] & 0xffff0000) == 0) {
++    //if((motion[i] & 0xffff0000) == 0) {
+       if(key == motion[i])
+         sdlMotionButtons[i] = down;
+-    }
++    //}
+   }
+ }
+ 
+@@ -463,10 +463,10 @@ void inputProcessSDLEvent(const SDL_Event &event)
+     switch(event.type)
+     {
+         case SDL_KEYDOWN:
+-            sdlUpdateKey(event.key.keysym.sym, true);
++            if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, true);
+             break;
+         case SDL_KEYUP:
+-            sdlUpdateKey(event.key.keysym.sym, false);
++            if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, false);
+             break;
+         case SDL_JOYHATMOTION:
+             sdlUpdateJoyHat(event.jhat.which,
+-- 
+2.25.1
+

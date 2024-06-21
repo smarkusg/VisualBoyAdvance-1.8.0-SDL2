@@ -755,6 +755,7 @@ enable_c_core
 enable_profiling
 with_mmx
 enable_sdl
+enable_opengl
 enable_gtk
 enable_dev
 enable_dependency_tracking
@@ -1418,6 +1419,7 @@ Optional Features:
   --enable-c-core         enable C core (default is no on x86 targets)
   --enable-profiling      enable profiling (default is yes)
   --enable-sdl            build the SDL interface (default is yes)
+  --enable-opengl         build with OpenGL support (default is yes)
   --enable-gtk=[VERSION]  build the GTK+ interface (default is no)
   --enable-dev            enable development features (default is yes)
   --disable-dependency-tracking Speeds up one-time builds
@@ -2414,7 +2416,7 @@ case "$target" in
     ;;
 esac
 
-am__api_version="1.7"
+am__api_version="1.6"
 # Find a good install program.  We prefer a C program (faster),
 # so one script is as good as another.  But avoid the broken or
 # incompatible versions:
@@ -2840,6 +2842,14 @@ if test "${enable_sdl+set}" = set; then :
   enableval=$enable_sdl; 
 else
   enable_sdl=yes
+fi
+
+
+@%:@ Check whether --enable-opengl was given.
+if test "${enable_opengl+set}" = set; then :
+  enableval=$enable_opengl; 
+else
+  enable_opengl=yes
 fi
 
 
@@ -5799,7 +5809,8 @@ if test "x$with_mmx" = xyes; then
 fi
 
 if test "x$enable_sdl" = xyes || test "x$enable_gtk" = xyes; then
-  SDL_VERSION=1.2.2
+  SDL_VERSION=1.2.0
+  CXXFLAGS="$CXXFLAGS -fpermissive"
   
 @%:@ Check whether --with-sdl-prefix was given.
 if test "${with_sdl_prefix+set}" = set; then :
@@ -6049,6 +6060,11 @@ rm -f core conftest.err conftest.$ac_objext \
   
   rm -f conf.sdltest
 
+fi
+
+if test "x$enable_opengl" = xyes; then
+  CXXFLAGS="$CXXFLAGS -DUSE_OPENGL"
+  VBA_LIBS="$VBA_LIBS -lGL"
 fi
 
 if test "x$enable_sdl" = xyes; then
