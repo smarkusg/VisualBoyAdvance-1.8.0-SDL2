@@ -1312,6 +1312,9 @@ void sdlReadPreferences(FILE *f)
       }
     } else if(!strcmp(key, "soundOff")) {
       soundOffFlag = sdlFromHex(value) ? true : false;
+//dublicate!!
+    } else if(!strcmp(key, "mute")) {
+      mute  = sdlFromHex(value);
     } else if(!strcmp(key, "soundEnable")) {
       int res = sdlFromHex(value) & 0x30f;
       soundEnable(res);
@@ -1358,7 +1361,7 @@ void sdlReadPreferences(FILE *f)
 #endif
 #ifdef AOS_SDL2
     } else if(!strcmp(key, "sdl2wfd")) {
-      fullscreen_window = sdlFromHex(value) ? false : true;
+      fullscreen_window = sdlFromHex(value) ? true : false;
 #endif
     } else if(!strcmp(key, "pauseWhenInactive")) {
       pauseWhenInactive = sdlFromHex(value) ? true : false;
