@@ -2730,7 +2730,7 @@ int main(int argc, char **argv)
 #ifdef AOS_SDL2
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
   if(openGL) {
-     flags = flags | SDL_WINDOW_OPENGL;
+     flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
      SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
      SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
      SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
@@ -3720,7 +3720,7 @@ void systemGbBorderOn()
 #ifdef AOS_SDL2
    flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
    if(openGL) {
-     flags = flags | SDL_WINDOW_OPENGL;
+     flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
      SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
      SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
      SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
