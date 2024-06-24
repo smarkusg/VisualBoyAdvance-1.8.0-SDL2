@@ -2731,15 +2731,16 @@ int main(int argc, char **argv)
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
   if(openGL) {
      flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
+
+     if (SDL_FULL) window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+       else window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+
+     context = SDL_GL_CreateContext(window);
+     SDL_GL_SetSwapInterval(1);
      SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
      SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
      SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
      SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-
-       if (SDL_FULL) window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
-        else window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
-
-       context = SDL_GL_CreateContext(window);
     } else {
 
      if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
@@ -3721,15 +3722,16 @@ void systemGbBorderOn()
    flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
    if(openGL) {
      flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
+
+     if (SDL_FULL)       window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+        else window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+
+     context = SDL_GL_CreateContext(window);
+     SDL_GL_SetSwapInterval(1);
      SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
      SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
      SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
      SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-
-       if (SDL_FULL)       window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
-        else window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
-
-       context = SDL_GL_CreateContext(window);
     } else {
 
      if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
