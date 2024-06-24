@@ -148,6 +148,7 @@ SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 SDL_Texture *texture = NULL;
 SDL_Surface *surface = NULL;
+SDL_GLContext context = NULL;
 
 int desktopWidth = 0;
 int desktopHeight = 0;
@@ -2728,10 +2729,23 @@ int main(int argc, char **argv)
 
 #ifdef AOS_SDL2
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE ;
-  if(openGL) flags = flags | SDL_WINDOW_OPENGL;
+  if(openGL) {
+     flags = flags | SDL_WINDOW_OPENGL;
+     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
+     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
+     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 
- if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
+       if (SDL_FULL) window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+        else window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+
+       context = SDL_GL_CreateContext(window);
+    } else {
+
+     if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
        else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
+   }
+
 
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
@@ -3032,12 +3046,15 @@ int main(int argc, char **argv)
     filterPix = NULL;
  }
 
+go_out:
 #ifdef AOS_SDL2
   // Close and destroy the window
   SDL_DestroyTexture(texture);
   SDL_FreeSurface(surface);
   SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);        
+  if(openGL)
+    SDL_GL_DeleteContext(context);
+  SDL_DestroyWindow(window);
 #endif
 
   SDL_Quit();
@@ -3702,10 +3719,22 @@ void systemGbBorderOn()
 
 #ifdef AOS_SDL2
    flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE;
-   if(openGL) flags = flags | SDL_WINDOW_OPENGL;
+   if(openGL) {
+     flags = flags | SDL_WINDOW_OPENGL;
+     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
+     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
+     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 
-   if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
-      else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
+       if (SDL_FULL)       window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)));
+        else window = SDL_CreateWindow("VBA", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)));
+
+       context = SDL_GL_CreateContext(window);
+    } else {
+
+     if (SDL_FULL) SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)), &window, &renderer);
+       else SDL_CreateWindowAndRenderer(destWidth, destHeight, (flags|(fullscreen ? SDL_WINDOW_FULLSCREEN : 0)), &window, &renderer);
+   }
 
   SDL_SetWindowMinimumSize(window, destWidth, destHeight);
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
