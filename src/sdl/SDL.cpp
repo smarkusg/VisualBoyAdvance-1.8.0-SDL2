@@ -3350,10 +3350,14 @@ void systemSetTitle(const char *title)
 {
 #ifdef AOS_SDL2
 #ifdef __AMIGAOS4__
-  static char  w_title[512];
-  strcpy(w_title,AMIGA_VERSION);
-  strcat(w_title, title);
-  SDL_SetWindowTitle(window,w_title);
+  if(!fullscreen && showSpeed) {
+    static char  w_title[512];
+    strcpy(w_title,AMIGA_VERSION);
+    strcat(w_title, title);
+    SDL_SetWindowTitle(window,w_title);
+  } else 
+      AmigaOS_ScreenTitle(window,filename); //lol in fullscreen too fixme?
+
 #else
   SDL_SetWindowTitle(window,title);
 #endif //AOS4
