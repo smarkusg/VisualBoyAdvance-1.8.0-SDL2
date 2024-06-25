@@ -1984,14 +1984,13 @@ void sdlPollEvents()
      case SDL_DROPFILE: 
        {
           const char    *extensions[] =
-            { ",gba",".gb",".zip",
-              ",GBA",".GB",".ZIP",
+            { ".gba",".gb",".zip",
+              ".GBA",".GB",".ZIP",
               NULL
             };
 
              char *ext;
              SDL_bool bingo=SDL_FALSE;
-
             //check extension
              ext = strrchr(event.drop.file, '.');
             if (ext) {
@@ -2597,7 +2596,7 @@ int main(int argc, char **argv)
 run_again_dropfile:
 
        if (dropped_file) {
-        strcpy(filename, dropped_file);
+        strcpy(szFile, dropped_file);
         dropped_file = NULL;
        }
 #endif
@@ -3093,6 +3092,8 @@ run_again_dropfile:
 #ifdef AOS_SDL2
 // file drop go again
    if (dropped_file) goto run_again_dropfile;
+
+   SDL_free(dropped_file);
 #endif
 
   SDL_Quit();
