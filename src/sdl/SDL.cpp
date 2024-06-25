@@ -152,7 +152,7 @@ SDL_GLContext context = NULL;
 
 int desktopWidth = 0;
 int desktopHeight = 0;
-
+char* dropped_file;
 #else
 SDL_Surface *surface = NULL;
 SDL_Overlay *overlay = NULL;
@@ -1983,7 +1983,30 @@ void sdlPollEvents()
       //SDL_DROP todo!!!
      case SDL_DROPFILE: 
        {
-          if (event.drop.file) systemMessage(0,"!!!! not implemented yet !!!! ..sorry",event.drop.file);
+          const char    *extensions[] =
+            { ",gba",".gb",".zip",
+              ",GBA",".GB",".ZIP",
+              NULL
+            };
+
+             char *ext;
+             SDL_bool bingo=SDL_FALSE;
+
+            //check extension
+             ext = strrchr(event.drop.file, '.');
+            if (ext) {
+                for (int i = 0; extensions[i]; i++)
+                 {
+                    if (strcmp(extensions[i],ext) == 0 )
+                      bingo = SDL_TRUE;
+                 }
+               ext=NULL;
+            }
+            if (bingo) {
+                dropped_file = event.drop.file;
+                if (debug_fprintf) fprintf (stderr,"SDL drop file %s go go go .. \n",dropped_file);
+                emulating = 0;
+             }
        }
        break;
 #endif
@@ -1994,10 +2017,10 @@ void sdlPollEvents()
       if (!event.key.keysym.mod) sdlUpdateKey(event.key.keysym.sym, true);
 #endif
       break;
-    case SDL_KEYUP:
-      switch(event.key.keysym.sym) {
-      case SDLK_r:
-        if(!(event.key.keysym.mod & MOD_NOCTRL) &&
+      case SDL_KEYUP:
+        switch(event.key.keysym.sym) {
+         case SDLK_r:
+         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
           if(emulating) {
             emulator.emuReset();
@@ -2006,7 +2029,6 @@ void sdlPollEvents()
           }
         }
         break;
-     
 
       case SDLK_b:
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
@@ -2570,6 +2592,16 @@ int main(int argc, char **argv)
       exit(-1);
     }
 
+// markus file drop - starts here
+#ifdef AOS_SDL2
+run_again_dropfile:
+
+       if (dropped_file) {
+        strcpy(filename, dropped_file);
+        dropped_file = NULL;
+       }
+#endif
+//
     utilGetBaseName(szFile, filename);
     char *p = strrchr(filename, '.');
 
@@ -3027,6 +3059,7 @@ int main(int argc, char **argv)
 
 
   emulating = 0;
+
   if (debug_fprintf) fprintf(stderr,"Shutting down\n");
   remoteCleanUp();
   soundShutdown();
@@ -3047,7 +3080,6 @@ int main(int argc, char **argv)
     filterPix = NULL;
  }
 
-go_out:
 #ifdef AOS_SDL2
   // Close and destroy the window
   SDL_DestroyTexture(texture);
@@ -3056,6 +3088,11 @@ go_out:
   if(openGL)
     SDL_GL_DeleteContext(context);
   SDL_DestroyWindow(window);
+#endif
+
+#ifdef AOS_SDL2
+// file drop go again
+   if (dropped_file) goto run_again_dropfile;
 #endif
 
   SDL_Quit();
