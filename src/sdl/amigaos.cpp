@@ -42,8 +42,6 @@
 
 char* SDL_FULL = NULL; //Tooltypes
 
-#include <SDL2/SDL.h>
-
 static const char *__attribute__((used)) stackcookie = "$STACK: 500000";
 static const char *__attribute__((used)) version_tag = "$VER: " AMIGA_VERSION_SIGN ;
 
@@ -110,6 +108,8 @@ BOOL open_lib( const char *name, int ver , const char *iname, int iver, struct L
 	}
 
 //tooltype
+
+
 void AmigOS_tooltype( WBStartup *WBStartup)
 {
       struct WBArg *WBArg=&WBStartup->sm_ArgList[0];
@@ -136,6 +136,34 @@ void AmigOS_tooltype( WBStartup *WBStartup)
       }
 
 }
+//setwindowtitle
+
+void AmigaOS_ScreenTitle(SDL_Window * window, char *filename)
+{
+  struct Window *win;
+  SDL_SysWMinfo wmInfo;
+
+//  static char scrtitle[128];
+
+
+  static char buf [512];
+
+  strcpy(buf, AMIGA_VERSION_SIGN);
+  strcat(buf, " ROMNAME: ");
+  strcat(buf,strdup(FilePart(filename)));
+
+  SDL_GetWindowWMInfo(window,&wmInfo);
+
+  win = (  (struct Window*)wmInfo.info.os4.window);
+//  sprintf(scrtitle, AMIGA_VERSION" (%s)\0",vo_str);
+//  SetWindowTitles(win, (CONST_STRPTR)~0, scrtitle);
+  SetWindowTitles(win, (CONST_STRPTR)~0, buf);
+
+}
+
+
+
+//
 
 void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
 {
