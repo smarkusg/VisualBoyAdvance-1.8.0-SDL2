@@ -143,9 +143,6 @@ void AmigaOS_ScreenTitle(SDL_Window * window, char *filename)
   struct Window *win;
   SDL_SysWMinfo wmInfo;
 
-//  static char scrtitle[128];
-
-
   static char buf [512];
 
   strcpy(buf, AMIGA_VERSION_SIGN);
@@ -155,8 +152,6 @@ void AmigaOS_ScreenTitle(SDL_Window * window, char *filename)
   SDL_GetWindowWMInfo(window,&wmInfo);
 
   win = (  (struct Window*)wmInfo.info.os4.window);
-//  sprintf(scrtitle, AMIGA_VERSION" (%s)\0",vo_str);
-//  SetWindowTitles(win, (CONST_STRPTR)~0, scrtitle);
   SetWindowTitles(win, (CONST_STRPTR)~0, buf);
 
 }
@@ -213,7 +208,7 @@ void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
 		BPTR FavoritePath_File;
 		char FavoritePath_Value[1024];
 		BOOL FavoritePath_Ok = FALSE;
-	        char *EXTPATTERN = strdup("#?.(gba|gb|zip)");
+	        char *EXTPATTERN = strdup("#?.(gba|gbc|gb|zip)");
 
 		FavoritePath_File = Open("PROGDIR:ROMS", MODE_OLDFILE);
 		if (FavoritePath_File)
