@@ -11,7 +11,7 @@
 #include <SDL2/SDL_syswm.h>
 
 #define AMIGA_VERSION "VBA"
-#define AMIGA_VERSION_SIGN "VisualBoyAdvance 1.8.0 (25.06.2024)"
+#define AMIGA_VERSION_SIGN "VisualBoyAdvance 1.8.0 (26.06.2024)"
 
 int AmigaOS_Open(int argc, char *argv[]); // returns -1 if a problem
 void AmigaOS_Close(void);

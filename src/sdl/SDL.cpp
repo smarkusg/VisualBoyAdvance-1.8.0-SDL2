@@ -30,9 +30,10 @@
 #define AOS_SDL2 //SDL2_ON
 #ifdef AOS_SDL2
 #include "SDL2/SDL.h"
+#include "logo.h"
 #else
 #include "SDL.h"
-#endif 
+#endif
 //
 #include "../GBA.h"
 #include "../agbprint.h"
@@ -153,6 +154,7 @@ SDL_GLContext context = NULL;
 int desktopWidth = 0;
 int desktopHeight = 0;
 char* dropped_file;
+int droppwindow = 0;
 #else
 SDL_Surface *surface = NULL;
 SDL_Overlay *overlay = NULL;
@@ -1363,6 +1365,8 @@ void sdlReadPreferences(FILE *f)
 #ifdef AOS_SDL2
     } else if(!strcmp(key, "sdl2wfd")) {
       fullscreen_window = sdlFromHex(value) ? true : false;
+    } else if(!strcmp(key, "droppwindow")) {
+      droppwindow = sdlFromHex(value) ? true : false;
 #endif
     } else if(!strcmp(key, "pauseWhenInactive")) {
       pauseWhenInactive = sdlFromHex(value) ? true : false;
@@ -2280,6 +2284,117 @@ Long options only:\n\
 ");
 
 }
+//markus SDLROP Window
+#ifdef AOS_SDL2
+void VBA_DropWindow (void)
+{
+    //extension
+    const char    *extensions[] =
+    { ".gba",".gb",".gbc",".zip",
+      ".GBA",".GB",".GBC",".ZIP",
+      NULL
+    };
+
+    char *ext;
+    SDL_bool done,bingo;
+    SDL_Window *window;
+    SDL_Event event;                        // Declare event handle
+
+    SDL_Init(SDL_INIT_VIDEO);               // SDL2 initialization
+
+    window = SDL_CreateWindow(  // Create a window
+        "Please drop the rom file on window",
+	SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 400, 270, 0);
+
+    SDL_RWops *pixelsWop = SDL_RWFromConstMem((const unsigned char *)logovba, sizeof(logovba));
+    SDL_Surface *image = SDL_LoadBMP_RW(pixelsWop, 1);
+
+    SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Texture * texture = SDL_CreateTextureFromSurface(renderer, image);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+
+    // Check that the window was successfully made
+    if (window == NULL) {
+        // In the event that the window could not be made...
+        SDL_Log("Could not create window: %s", SDL_GetError());
+        SDL_Quit();
+    }
+
+    SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+
+    done = SDL_FALSE;
+    bingo = SDL_FALSE;
+    while (!done) {                         // Program loop
+        while (!done && SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case (SDL_QUIT): {          // In case of exit
+                    done = SDL_TRUE;
+                    break;
+                }
+		case (SDL_KEYDOWN):
+		 if(event.key.keysym.sym == SDLK_q) {
+		 done = SDL_TRUE;
+		}
+		if(event.key.keysym.sym == SDLK_ESCAPE) {
+		done = SDL_TRUE;
+		}	
+ 		    break;
+                //}
+               case (SDL_DROPFILE): {      // In case if dropped file
+		    //check extension
+		    ext = strrchr(event.drop.file, '.');
+		    if (ext) 
+		    {
+		      for (int i = 0; extensions[i]; i++)
+			{
+				if (strcmp(extensions[i],ext) == 0 )
+				    bingo = SDL_TRUE;
+			}
+		    }
+		    if (!bingo)
+		    {
+#ifdef __AMIGAOS4__
+	                 SDL_ShowSimpleMessageBox(
+                         SDL_MESSAGEBOX_ERROR,
+                         AMIGA_VERSION_SIGN,
+                         "!!!  FILE IS  not ROM !!!",
+                         window);
+#else
+	                 SDL_ShowSimpleMessageBox(
+                         SDL_MESSAGEBOX_ERROR,
+                         "File dropped on window",
+                         "!!!  FILE IS  not ROM !!!",
+                         window);
+#endif
+		    }
+		    else 
+		    {
+                     dropped_file = event.drop.file;
+		     done = SDL_TRUE;
+		    }
+
+                 }
+                    break;
+            }
+        }
+        SDL_Delay(50);
+    }
+
+    // Close and destroy the window
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(image);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);        
+
+// Clean up fixme!!!!
+    SDL_Quit();                       
+    if (!dropped_file) 
+       exit(0);
+
+}
+#endif
+//
 
 int main(int argc, char **argv)
 {
@@ -2343,6 +2458,18 @@ int main(int argc, char **argv)
 
   sdlPrintUsage = 0;
 
+
+#ifdef AOS_SDL2
+//DROP 
+   if ((argc < 2 ) && (!dropped_file) && droppwindow)
+        VBA_DropWindow();
+
+   if (dropped_file) {
+       argc=2;
+       argv[1]=(char*)dropped_file;
+       dropped_file = NULL;
+   }
+#endif
 //AOS4
 #ifdef __AMIGAOS4__
     atexit(AmigaOS_Close); // avoid unfreeded resources

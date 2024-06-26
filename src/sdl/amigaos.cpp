@@ -41,6 +41,8 @@
 #include <cstdarg>
 
 char* SDL_FULL = NULL; //Tooltypes
+extern int droppwindow; //sdl drop gui window
+
 
 static const char *__attribute__((used)) stackcookie = "$STACK: 500000";
 static const char *__attribute__((used)) version_tag = "$VER: " AMIGA_VERSION_SIGN ;
@@ -202,6 +204,8 @@ void AmigaOS_ParseArg(int argc, char *argv[], int *new_argc, char ***new_argv)
          }
 	 else
 	 {
+               
+               if (droppwindow) goto error_select; //drop gui sdl
 
 		ULONG i;
 		struct FileRequester *AmigaOS_FileRequester = NULL;
