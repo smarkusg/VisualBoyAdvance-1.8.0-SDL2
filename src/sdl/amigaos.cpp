@@ -151,11 +151,10 @@ void AmigaOS_ScreenTitle(SDL_Window * window, char *filename)
   strcat(buf, " ROMNAME: ");
   strcat(buf,strdup(FilePart(filename)));
 
-  SDL_GetWindowWMInfo(window,&wmInfo);
-
-  win = (  (struct Window*)wmInfo.info.os4.window);
-  SetWindowTitles(win, (CONST_STRPTR)~0, buf);
-
+  if(SDL_GetWindowWMInfo(window,&wmInfo)) {
+    win = (  (struct Window*)wmInfo.info.os4.window);
+    SetWindowTitles(win, (CONST_STRPTR)~0, buf);
+  }
 }
 
 
