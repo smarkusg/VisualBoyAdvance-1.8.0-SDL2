@@ -42,10 +42,10 @@
 # define GETCWD _getcwd
 #endif // WIN32
 
-//Samir add
+
 #ifdef __AMIGAOS4__
-static const char __attribute__((used)) min_stack[] = "$STACK:409600";
-char ver[] = "\0$VER: TestEmu 1.0 (27.06.2024)";
+static const char *__attribute__((used)) stackcookie = "$STACK: 409600";
+static const char *__attribute__((used)) version_tag = "$VER:TestEmu 1.0 (27.06.2024)" ;
 #endif
 
 #ifdef MMX
