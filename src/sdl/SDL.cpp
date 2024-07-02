@@ -437,10 +437,10 @@ struct option sdlOptions[] = {
   { "no-ips", no_argument, &sdlAutoIPS, 0 },
 #ifndef __AMIGAOS4__
   { "no-mmx", no_argument, &disableMMX, 1 },
-#endif
 #ifdef USE_OPENGL
   { "no-opengl", no_argument, &openGL, 0 },
 #endif
+#endif //AOS4
   { "no-pause-when-inactive", no_argument, &pauseWhenInactive, 0 },
 #ifdef AOS_SDL2
   { "sdl2wfd", no_argument, &fullscreen_window, 1 },
@@ -449,11 +449,13 @@ struct option sdlOptions[] = {
   { "no-rtc", no_argument, &sdlRtcEnable, 0 },
   { "no-show-speed", no_argument, &showSpeed, 0 },
   { "no-throttle", no_argument, &throttle, 0 },
+#ifndef __AMIGAOS4__
 #ifdef USE_OPENGL
   { "opengl", required_argument, 0, 'O' },
   { "opengl-nearest", no_argument, &openGL, 1 },
   { "opengl-bilinear", no_argument, &openGL, 2 },
 #endif
+#endif //AOS4
   { "pause-when-inactive", no_argument, &pauseWhenInactive, 1 },
   { "profile", optional_argument, 0, 'p' },
   { "rtc", no_argument, &sdlRtcEnable, 1 },
@@ -1265,8 +1267,10 @@ void sdlReadPreferences(FILE *f)
         sizeOption = 1;
     } else if(!strcmp(key, "fullScreen")) {
       fullscreen = sdlFromHex(value) ? 1 : 0;
+#ifndef __AMIGAOS4__
     } else if(!strcmp(key, "openGL")) {
      openGL = sdlFromHex(value);
+#endif
     } else if(!strcmp(key, "useBios")) {
       useBios = sdlFromHex(value) ? true : false;
     } else if(!strcmp(key, "skipBios")) {
@@ -2098,6 +2102,7 @@ void sdlPollEvents()
 #endif //AOS_SDL2
         }
         break;
+#ifndef __AMIGAOS4__
       case SDLK_F11:
         if(dbgMain != debuggerMain) {
           if(armState) {
@@ -2110,6 +2115,7 @@ void sdlPollEvents()
         }
         debugger = true;
         break;
+#endif
       case SDLK_F1:
       case SDLK_F2:
       case SDLK_F3:
@@ -2203,10 +2209,17 @@ Options:\n\
   -2, --video-2x               2x\n\
   -3, --video-3x               3x\n\
   -4, --video-4x               4x\n\
+");
+#ifndef __AMIGAOS4__
+  printf("\
   -O, --opengl=MODE            Set OpenGL texture filter\n\
       --no-opengl               0 - Disable OpenGL\n\
       --opengl-nearest          1 - No filtering\n\
       --opengl-bilinear         2 - Bilinear filtering\n\
+
+");
+#endif
+  printf("\
   -F, --fullscreen             Full screen\n\
   -G, --gdb=PROTOCOL           GNU Remote Stub mode:\n\
                                 tcp      - use TCP at port 55555\n\
@@ -2498,7 +2511,11 @@ int main(int argc, char **argv)
 
   while((op = getopt_long(argc,
                           argv,
+#ifndef __AMIGAOS4__
                            "FNO:T:Y:G:D:b:c:df:hi:p::s:t:v:1234",
+#else
+                           "FNT:Y:G:D:b:c:df:hi:p::s:t:v:1234",
+#endif
                           sdlOptions,
                           NULL)) != -1) {
     switch(op) {
@@ -2632,7 +2649,7 @@ int main(int argc, char **argv)
     case 'v':
       if(optarg) {
         systemVerbose = atoi(optarg);
-      } else 
+      } else
         systemVerbose = 0;
       break;
     case '1':
@@ -2647,6 +2664,7 @@ int main(int argc, char **argv)
     case '4':
       sizeOption = 3;
       break;
+#ifndef __AMIGAOS4__
     case 'O':
       if(optarg) {
        openGL = atoi(optarg);
@@ -2655,6 +2673,7 @@ int main(int argc, char **argv)
      } else
         openGL = 0;
     break;
+#endif
     case '?':
       sdlPrintUsage = 1;
       break;
